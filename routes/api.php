@@ -37,7 +37,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::delete('{id}', [DepartmentController::class, 'destroy']);
     });
 
-    Route::prefix('employee')->group(function () {
+    Route::prefix('employees')->group(function () {
         Route::get('/', [OnboardingController::class, 'index']);
         Route::post('/onboarding', [OnboardingController::class, 'store']);
         Route::get('{id}', [DepartmentController::class, 'show']);

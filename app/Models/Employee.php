@@ -26,4 +26,12 @@ class Employee extends Model
     public function user(){
         return $this->hasOne(User::class, 'id','user_id');
     }
+    public function department()
+    {
+        return $this->hasOne(Department::class, 'id','department_id');
+    }
+    public function shift()
+    {
+        return $this->hasOne(Shift::class, 'id','shift_id');
+    }
 }
