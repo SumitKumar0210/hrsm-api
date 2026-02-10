@@ -15,7 +15,7 @@ class DepartmentController extends Controller
     public function index()
     {
         try {
-            $departments = Department::latest()->get();
+            $departments = Department::latest()->get(['id', 'name', 'status']);
 
             return response()->json([
                 'success' => true,
@@ -41,7 +41,7 @@ class DepartmentController extends Controller
                 'max:255',
                 Rule::unique('departments', 'name')->whereNull('deleted_at'),
             ],
-            'status' => 'nullable|in:0,1'
+            'status' => 'nullable|in:active,inactive'
         ]);
 
         if ($validator->fails()) {
@@ -97,9 +97,12 @@ class DepartmentController extends Controller
                 'string',
                 'max:255',
                 'unique:departments,name,' . $id,
-                Rule::unique('departments', 'name')->whereNull('deleted_at'),
+                Rule::unique('departments', 'name')
+                    ->ignore($id)
+                    ->whereNull('deleted_at')
+                    // ->whereRaw('LOWER(name) = LOWER(?)', [$request->name])
             ],
-            'status' => 'nullable|in:0,1'
+            'status' => 'nullable|in:active,inactive'
         ]);
 
         if ($validator->fails()) {

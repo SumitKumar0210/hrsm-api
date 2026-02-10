@@ -17,7 +17,7 @@ class Shift extends Model
         'status',
     ];
 
-    protected $casts = [
-        'default_time' => 'boolean',
-    ];
+    // protected $casts = [
+    //     'default_time' => 'boolean',
+    // ];
 }

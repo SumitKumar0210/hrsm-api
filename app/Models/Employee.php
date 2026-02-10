@@ -21,6 +21,8 @@ class Employee extends Model
         'designation',
         'status',
         'week_off',
+        'blood_group',
+        'aadhar_number',
     ];
 
     public function user(){

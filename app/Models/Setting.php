@@ -1,8 +1,10 @@
-<?php 
+<?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Setting extends Model
 {
     // use SoftDeletes;
@@ -18,5 +20,11 @@ class Setting extends Model
         'contact',
         'email',
         'address',
+        'api_key',
+        'city',
+        'state',
+        'country',
+        'zip',
+        'short_description',
     ];
 }

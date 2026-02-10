@@ -32,7 +32,7 @@ class ShiftController extends Controller
             ],
             'check_in_timing'  => 'required|string|max:50',
             'check_out_timing' => 'required|string|max:50',
-            'deflat_time'      => 'nullable|boolean',
+            'default_time'      => 'nullable|boolean',
             'status'           => 'nullable|in:active,inactive',
         ]);
 
@@ -48,7 +48,7 @@ class ShiftController extends Controller
                 'name' => $request->name,
                 'check_in_timing' => $request->check_in_timing,
                 'check_out_timing' => $request->check_out_timing,
-                'deflat_time' => $request->deflat_time ?? false,
+                'default_time' => $request->default_time ?? false,
                 'status' => $request->status ?? 'active',
             ]);
 
@@ -109,7 +109,7 @@ class ShiftController extends Controller
             ],
             'check_in_timing'  => 'required|string|max:50',
             'check_out_timing' => 'required|string|max:50',
-            'deflat_time'      => 'nullable|boolean',
+            'default_time'      => 'nullable|boolean',
             'status'           => 'nullable|in:active,inactive',
         ]);
 
@@ -124,7 +124,7 @@ class ShiftController extends Controller
             'name' => $request->name,
             'check_in_timing' => $request->check_in_timing,
             'check_out_timing' => $request->check_out_timing,
-            'deflat_time' => $request->deflat_time ?? $shift->deflat_time,
+            'default_time' => $request->default_time === true || $request->default_time === 1 ? 1 : 0,
             'status' => $request->status ?? $shift->status,
         ]);
 
@@ -132,6 +132,7 @@ class ShiftController extends Controller
             'success' => true,
             'message' => 'Shift updated successfully',
             'data' => $shift,
+            'request' => $request->all(),
         ], 200);
     }
 

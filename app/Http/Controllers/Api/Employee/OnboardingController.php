@@ -33,6 +33,12 @@ class OnboardingController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        return response()->json([
+                'success' => true,
+                'message' => 'Employee onboarded successfully',
+                'data'    => $request->all()
+            ], 200);
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:100',
             'last_name'  => 'required|string|max:100',
@@ -91,6 +97,8 @@ class OnboardingController extends Controller
                 'department'      => $request->department,
                 'shift_type'      => $request->shift_type,
                 'shift_timing'    => $request->shift_timing,
+                'blood_group'    => $request->blood_group,
+                'aadhar_number'    => $request->aadhar_number,
                 'id_proof'        => $uploads['idProof'] ?? null,
                 'address_proof'   => $uploads['addressProof'] ?? null,
                 'bank_details'    => $uploads['bankDetails'] ?? null,
