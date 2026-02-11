@@ -15,7 +15,7 @@ class Setting extends Model
         'application_name',
         'about',
         'theme_color',
-        'copy_right',
+        'copyright',
         'powered_by',
         'contact',
         'email',

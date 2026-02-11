@@ -28,10 +28,12 @@ class SettingController extends Controller
             'state'            => 'required|string',
             'country'          => 'required|string',
             'zip'              => 'required|string',
-            'about'            => 'required|string',
-            'shortDescription' => 'required|string',
-            'apiKey'           => 'required|string',
+            'about'            => 'nullable|string',
+            'shortDescription' => 'nullable|string',
+            'apiKey'           => 'nullable|string',
             'brandColor'       => 'nullable|string',
+            'powered_by'       => 'nullable|string',
+            'copyright'       => 'nullable|string',
             'logo'             => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
             'favicon'          => 'nullable|image|mimes:png,jpg,jpeg,ico|max:1024',
         ]);
@@ -51,6 +53,8 @@ class SettingController extends Controller
             'short_description' => $validated['shortDescription'],
             'api_key'           => $validated['apiKey'],
             'theme_color'       => $validated['brandColor'],
+            'copyright'       => $validated['copyright'],
+            'powered_by'       => $validated['powered_by'],
         ];
 
         $setting = $setting

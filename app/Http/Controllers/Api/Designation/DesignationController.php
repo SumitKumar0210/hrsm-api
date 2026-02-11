@@ -1,51 +1,50 @@
 <?php
 
-namespace App\Http\Controllers\Api\Department;
+namespace App\Http\Controllers\Api\Designation;
 
 use App\Http\Controllers\Controller;
-use App\Models\Department;
+use App\Models\Designation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
-
-class DepartmentController extends Controller
+class DesignationController extends Controller
 {
     public function index()
     {
         try {
-            $departments = Department::latest()->get(['id', 'name', 'status']);
+            $designations = Designation::latest()->get(['id', 'name', 'status']);
 
             return response()->json([
                 'success' => true,
-                'data' => $departments
+                'data' => $designations
             ], 200);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch departments'
+                'message' => 'Failed to fetch designations'
             ], 500);
         }
     }
 
-    public function activeDepartment()
+    public function activeDesignation()
     {
         try {
-            $departments = Department::latest()->where('status','active')->get(['id', 'name', 'status']);
+            $designations = Designation::latest()->where('status','active')->get(['id', 'name', 'status']);
 
             return response()->json([
                 'success' => true,
-                'data' => $departments
+                'data' => $designations
             ], 200);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch departments'
+                'message' => 'Failed to fetch designations'
             ], 500);
         }
     }
@@ -58,7 +57,7 @@ class DepartmentController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('departments', 'name')->whereNull('deleted_at'),
+                Rule::unique('designations', 'name')->whereNull('deleted_at'),
             ],
             'status' => 'nullable|in:active,inactive'
         ]);
@@ -71,22 +70,22 @@ class DepartmentController extends Controller
         }
 
         try {
-            $department = Department::create([
+            $designation = Designation::create([
                 'name' => $request->name,
                 'status' => $request->status ?? 1,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Department created successfully',
-                'data' => $department
+                'message' => 'Designation created successfully',
+                'data' => $designation
             ], 201);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Department creation failed'
+                'message' => 'Designation creation failed'
             ], 500);
         }
     }
@@ -94,16 +93,16 @@ class DepartmentController extends Controller
     public function show($id)
     {
         try {
-            $department = Department::findOrFail($id);
+            $designation = Designation::findOrFail($id);
 
             return response()->json([
                 'success' => true,
-                'data' => $department
+                'data' => $designation
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Department not found'
+                'message' => 'Designation not found'
             ], 404);
         }
     }
@@ -115,11 +114,11 @@ class DepartmentController extends Controller
                 'required',
                 'string',
                 'max:255',
-                'unique:departments,name,' . $id,
-                Rule::unique('departments', 'name')
+                'unique:designations,name,' . $id,
+                Rule::unique('designations', 'name')
                     ->ignore($id)
                     ->whereNull('deleted_at')
-                    // ->whereRaw('LOWER(name) = LOWER(?)', [$request->name])
+                // ->whereRaw('LOWER(name) = LOWER(?)', [$request->name])
             ],
             'status' => 'nullable|in:active,inactive'
         ]);
@@ -132,24 +131,24 @@ class DepartmentController extends Controller
         }
 
         try {
-            $department = Department::findOrFail($id);
+            $designation = Designation::findOrFail($id);
 
-            $department->update([
+            $designation->update([
                 'name' => $request->name,
-                'status' => $request->status ?? $department->status
+                'status' => $request->status ?? $designation->status
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Department updated successfully',
-                'data' => $department
+                'message' => 'Designation updated successfully',
+                'data' => $designation
             ], 200);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Department update failed'
+                'message' => 'Designation update failed'
             ], 500);
         }
     }
@@ -157,17 +156,17 @@ class DepartmentController extends Controller
     public function destroy($id)
     {
         try {
-            $department = Department::findOrFail($id);
-            $department->delete();
+            $designation = Designation::findOrFail($id);
+            $designation->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Department deleted successfully'
+                'message' => 'Designation deleted successfully'
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Department not found'
+                'message' => 'Designation not found'
             ], 404);
         }
     }

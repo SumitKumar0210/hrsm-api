@@ -20,6 +20,14 @@ class ShiftController extends Controller
         ], 200);
     }
 
+    public function activeShift()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => Shift::latest()->where('status','active')->get()
+        ], 200);
+    }
+
     // Store shift
     public function store(Request $request)
     {
@@ -46,9 +54,9 @@ class ShiftController extends Controller
         try {
             $shift = Shift::create([
                 'name' => $request->name,
-                'check_in_timing' => $request->check_in_timing,
-                'check_out_timing' => $request->check_out_timing,
-                'default_time' => $request->default_time ?? false,
+                'sign_in' => $request->check_in_timing,
+                'sign_out' => $request->check_out_timing,
+                'rotational_time' => $request->default_time ?? false,
                 'status' => $request->status ?? 'active',
             ]);
 
@@ -122,9 +130,9 @@ class ShiftController extends Controller
 
         $shift->update([
             'name' => $request->name,
-            'check_in_timing' => $request->check_in_timing,
-            'check_out_timing' => $request->check_out_timing,
-            'default_time' => $request->default_time === true || $request->default_time === 1 ? 1 : 0,
+            'sign_in' => $request->check_in_timing,
+            'sign_out' => $request->check_out_timing,
+            'rotational_time' => $request->default_time === true || $request->default_time === 1 ? 1 : 0,
             'status' => $request->status ?? $shift->status,
         ]);
 

@@ -11,13 +11,17 @@ class Shift extends Model
 
     protected $fillable = [
         'name',
-        'check_in_timing',
-        'check_out_timing',
-        'default_time',
+        'sign_in',
+        'sign_out',
+        'rotational_time',
         'status',
     ];
 
     // protected $casts = [
-    //     'default_time' => 'boolean',
+    //     'rotational_time' => 'boolean',
     // ];
+    public function employeeShift()
+    {
+        return $this->hasMany(EmployeeShiftLog::class, 'shift_id', 'id');
+    }
 }

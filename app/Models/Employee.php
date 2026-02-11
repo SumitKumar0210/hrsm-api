@@ -18,7 +18,7 @@ class Employee extends Model
         'shift_id',
         'date_of_joining',
         'employment_type',
-        'designation',
+        'designation_id',
         'status',
         'week_off',
         'blood_group',
@@ -35,5 +35,10 @@ class Employee extends Model
     public function shift()
     {
         return $this->hasOne(Shift::class, 'id','shift_id');
+    }
+    
+    public function designation()
+    {
+        return $this->hasOne(Designation::class, 'id', 'designation_id');
     }
 }

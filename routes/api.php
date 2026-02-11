@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Attendance\AttendanceController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Department\DepartmentController;
+use App\Http\Controllers\Api\Designation\DesignationController;
 use App\Http\Controllers\Api\Employee\OnboardingController;
 use App\Http\Controllers\Api\Employee\OTConfigurationController;
 use App\Http\Controllers\Api\Leave\LeaveController;
@@ -34,18 +35,25 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('departments')->group(function () {
         Route::get('/', [DepartmentController::class, 'index']);
+        Route::get('/active', [DepartmentController::class, 'activeDepartment']);
         Route::post('/', [DepartmentController::class, 'store']);
         Route::get('{id}', [DepartmentController::class, 'show']);
         Route::post('{id}', [DepartmentController::class, 'update']);
         Route::delete('{id}', [DepartmentController::class, 'destroy']);
     });
 
+    Route::prefix('designation')->group(function () {
+        Route::get('/', [DesignationController::class, 'index']);
+        Route::get('/active', [DesignationController::class, 'activeDesignation']);
+        Route::post('/', [DesignationController::class, 'store']);
+        Route::get('{id}', [DesignationController::class, 'show']);
+        Route::post('{id}', [DesignationController::class, 'update']);
+        Route::delete('{id}', [DesignationController::class, 'destroy']);
+    });
+
     Route::prefix('employees')->group(function () {
         Route::get('/', [OnboardingController::class, 'index']);
         Route::post('/onboarding', [OnboardingController::class, 'store']);
-        Route::get('{id}', [DepartmentController::class, 'show']);
-        Route::post('{id}', [DepartmentController::class, 'update']);
-        Route::delete('{id}', [DepartmentController::class, 'destroy']);
     });
 
     Route::prefix('attendance')->group(function () {
@@ -54,6 +62,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('shifts')->group(function () {
         Route::get('/', [ShiftController::class, 'index']);
+        Route::get('/active', [ShiftController::class, 'activeShift']);
         Route::post('/', [ShiftController::class, 'store']);
         Route::get('{id}', [ShiftController::class, 'show']);
         Route::post('{id}', [ShiftController::class, 'update']);

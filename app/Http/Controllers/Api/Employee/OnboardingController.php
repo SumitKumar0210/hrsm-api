@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Employee;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Employee;
+use App\Models\EmployeeShiftLog;
 use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OnboardingMail;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class OnboardingController extends Controller
 {
@@ -33,101 +35,96 @@ class OnboardingController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        return response()->json([
-                'success' => true,
-                'message' => 'Employee onboarded successfully',
-                'data'    => $request->all()
-            ], 200);
+        // return response()->json([
+        //         'success' => true,
+        //         'message' => 'Employee onboarded successfully',
+        //         'data'    => $request->all()
+        //     ], 200);
+        $validated = $request->validate([
+            'first_name'      => 'required|string|max:100',
+            'last_name'       => 'required|string|max:100',
+            'email'           => 'required|email|unique:users,email',
+            'phone'           => 'required|string|max:15',
 
-        $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:100',
-            'last_name'  => 'required|string|max:100',
-            'email'      => 'required|email|unique:users,email',
-            'phone'      => 'required|string|max:15',
+            'source'          => 'required|string',
+            'job_role'        => 'required|string',
+            'department'      => 'required|string',
+            'department_id'   => 'nullable|integer|exists:departments,id',
+            'shift_id'      => 'required|string',
+            'shift_timing'    => 'nullable|string',
 
-            'source'       => 'required|string',
-            'job_role'     => 'required|string',
-            'department'   => 'required|string',
-            'department_id' => 'nullable|integer|exists:departments,id',
-            'shift_type'   => 'required|string',
-            'shift_timing' => 'required|string',
+            'blood_group'     => 'nullable|string|max:5',
+            'aadhar_no'   => 'nullable|string|max:20',
 
-            'idProof'        => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'addressProof'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'bankDetails'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'contractLetter' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'profileImage'   => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'idProof'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'addressProof'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'bankDetails'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'contractLetter'  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'profileImage'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors'  => $validator->errors()->all()
-            ], 422);
-        }
-
-        DB::beginTransaction();
-
         try {
-            // Create user
-            $user = User::create([
-                'name'     => trim("{$request->first_name} {$request->last_name}"),
-                'email'    => $request->email,
-                'password' => Hash::make('12345678'), // TODO: Generate random password
-            ]);
 
-            // Generate employee code
-            $empCode = $this->generateEmployeeCode();
+            $employee = DB::transaction(function () use ($validated, $request) {
 
-            // Upload documents
-            $uploads = $this->handleUploads($request, $user->id);
+                // Create User
+                $user = User::create([
+                    'name'     => trim($validated['first_name'] . ' ' . $validated['last_name']),
+                    'email'    => $validated['email'],
+                    'password' => Hash::make(Str::random(10)), // secure random password
+                ]);
 
-            // Create employee
-            $employee = Employee::create([
-                'user_id'         => $user->id,
-                'mobile'          => $request->phone,
-                'first_name'      => $request->first_name,
-                'last_name'       => $request->last_name,
-                'email'           => $request->email,
-                'department_id'   => $request->department_id ?? 2,
-                'employee_code'   => $empCode,
-                'source'          => $request->source,
-                'job_role'        => $request->job_role,
-                'department'      => $request->department,
-                'shift_type'      => $request->shift_type,
-                'shift_timing'    => $request->shift_timing,
-                'blood_group'    => $request->blood_group,
-                'aadhar_number'    => $request->aadhar_number,
-                'id_proof'        => $uploads['idProof'] ?? null,
-                'address_proof'   => $uploads['addressProof'] ?? null,
-                'bank_details'    => $uploads['bankDetails'] ?? null,
-                'contract_letter' => $uploads['contractLetter'] ?? null,
-                'profile_image'   => $uploads['profileImage'] ?? null,
-            ]);
+                // Upload Files
+                $uploads = $this->handleUploads($request, $user->id);
 
-            // Create document records
-            $this->createDocumentRecords($employee->id, $uploads);
+                // Create Employee
+                $employee = Employee::create([
+                    'user_id'         => $user->id,
+                    'mobile'          => $validated['phone'],
+                    'first_name'      => $validated['first_name'],
+                    'last_name'       => $validated['last_name'],
+                    'email'           => $validated['email'],
+                    'department_id'   => $validated['department_id'] ?? 2,
+                    'employee_code'   => $this->generateEmployeeCode(),
+                    'source'          => $validated['source'],
+                    'designation_id'        => $validated['job_role'],
+                    'department'      => $validated['department'],
+                    'shift_id'      => $validated['shift_id'],
+                    'shift_timing'    => $validated['shift_timing'] ?? null,
+                    'blood_group'     => $validated['blood_group'] ?? null,
+                    'aadhar_number'   => $validated['aadhar_no'] ?? null,
+                    'id_proof'        => $uploads['idProof'] ?? null,
+                    'address_proof'   => $uploads['addressProof'] ?? null,
+                    'bank_details'    => $uploads['bankDetails'] ?? null,
+                    'contract_letter' => $uploads['contractLetter'] ?? null,
+                    'profile_image'   => $uploads['profileImage'] ?? null,
+                ]);
 
-            // Send onboarding email (queue it for better performance)
-            Mail::to($request->email)->queue(new OnboardingMail($employee));
+                // Create Shift Log
+                EmployeeShiftLog::create([
+                    'employee_id' => $employee->id,
+                    'shift_id' => $employee->shift_id,
+                    'sign_in'     => $request->shift_check_in_timing ?? null,
+                    'sign_out'    => $request->shift_check_out_timing ?? null,
+                    'action_by'   => auth()->id(),
+                ]);
 
-            DB::commit();
+                return $employee;
+            });
+
+            // Send Email (after transaction success)
+            Mail::to($employee->email)->queue(new OnboardingMail($employee));
 
             return response()->json([
                 'success' => true,
                 'message' => 'Employee onboarded successfully',
-                'data'    => $employee->load('user', 'department')
+                'data'    => $employee->load(['user', 'department'])
             ], 201);
-
         } catch (\Throwable $e) {
-            DB::rollBack();
 
             Log::error('Employee onboarding error', [
                 'message' => $e->getMessage(),
                 'line'    => $e->getLine(),
-                'file'    => $e->getFile(),
-                'trace'   => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -138,21 +135,22 @@ class OnboardingController extends Controller
         }
     }
 
+
     /**
      * List employees with filters and pagination
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Employee::with(['user', 'department', 'shift']);
+        $query = Employee::with(['user', 'department', 'shift', 'shift.employeeShift', 'designation']);
 
         // Apply filters
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('employee_code', 'like', "%{$search}%");
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('employee_code', 'like', "%{$search}%");
             });
         }
 
@@ -229,17 +227,24 @@ class OnboardingController extends Controller
             // Update user if email/name changed
             if ($request->filled(['first_name', 'last_name', 'email'])) {
                 $employee->user->update([
-                    'name' => trim(($request->first_name ?? $employee->first_name) . ' ' . 
-                                   ($request->last_name ?? $employee->last_name)),
+                    'name' => trim(($request->first_name ?? $employee->first_name) . ' ' .
+                        ($request->last_name ?? $employee->last_name)),
                     'email' => $request->email ?? $employee->email,
                 ]);
             }
 
             // Update employee
             $employee->update($request->only([
-                'mobile', 'first_name', 'last_name', 'email',
-                'source', 'job_role', 'department',
-                'shift_type', 'shift_timing', 'department_id'
+                'mobile',
+                'first_name',
+                'last_name',
+                'email',
+                'source',
+                'job_role',
+                'department',
+                'shift_type',
+                'shift_timing',
+                'department_id'
             ]));
 
             DB::commit();
@@ -249,7 +254,6 @@ class OnboardingController extends Controller
                 'message' => 'Employee updated successfully',
                 'data' => $employee->fresh(['user', 'department'])
             ], 200);
-
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -272,15 +276,15 @@ class OnboardingController extends Controller
     {
         try {
             $employee = Employee::findOrFail($id);
-            
+
             DB::beginTransaction();
 
             // Delete associated documents
             $employee->documents()->delete();
-            
+
             // Delete employee
             $employee->delete();
-            
+
             // Optionally delete user
             // $employee->user->delete();
 
@@ -290,7 +294,6 @@ class OnboardingController extends Controller
                 'success' => true,
                 'message' => 'Employee deleted successfully'
             ], 200);
-
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -332,7 +335,6 @@ class OnboardingController extends Controller
                 'message' => 'Employee status updated successfully',
                 'data' => $employee
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Employee status toggle error', [
                 'employee_id' => $id,
@@ -376,7 +378,7 @@ class OnboardingController extends Controller
                 $file = $request->file($field);
                 $extension = $file->getClientOriginalExtension();
                 $filename = $field . '_' . time() . '.' . $extension;
-                
+
                 $uploads[$field] = $file->storeAs(
                     "employees/{$userId}",
                     $filename,
