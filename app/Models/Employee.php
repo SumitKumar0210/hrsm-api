@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -23,22 +24,37 @@ class Employee extends Model
         'week_off',
         'blood_group',
         'aadhar_number',
+        'address',
+        'city',
+        'state',
+        'zip_code',
+        'source',
     ];
 
-    public function user(){
-        return $this->hasOne(User::class, 'id','user_id');
+    public function user()
+    {
+        return $this->hasOne(User::class, 'id', 'user_id');
     }
     public function department()
     {
-        return $this->hasOne(Department::class, 'id','department_id');
+        return $this->hasOne(Department::class, 'id', 'department_id');
     }
     public function shift()
     {
-        return $this->hasOne(Shift::class, 'id','shift_id');
+        return $this->hasOne(Shift::class, 'id', 'shift_id');
     }
-    
+
     public function designation()
     {
         return $this->hasOne(Designation::class, 'id', 'designation_id');
+    }
+    public function documents()
+    {
+        return $this->hasMany(Document::class, 'employee_id', 'id');
+    }
+    public function salaries()
+    {
+        return $this->hasMany(EmployeeSalary::class, 'employee_id')
+            ->where('status', 'active');
     }
 }

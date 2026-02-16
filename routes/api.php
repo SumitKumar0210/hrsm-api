@@ -53,6 +53,10 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('employees')->group(function () {
         Route::get('/', [OnboardingController::class, 'index']);
+        Route::get('/{id}', [OnboardingController::class, 'show']);
+        Route::post('/{id}', [OnboardingController::class, 'update']);
+        Route::patch('/{id}/status', [OnboardingController::class, 'toggleStatus']);
+        Route::post('/search', [OnboardingController::class, 'search']);
         Route::post('/onboarding', [OnboardingController::class, 'store']);
     });
 

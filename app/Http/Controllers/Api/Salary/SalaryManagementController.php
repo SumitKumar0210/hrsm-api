@@ -42,14 +42,14 @@ class SalaryManagementController extends Controller
             'overtime_rate' => 'nullable|numeric|min:0',
 
             'pf_applicable' => 'boolean',
-            'uan_number' => 'required_if:pf_applicable,1|string|nullable',
+            'uan_number' => 'nullable:pf_applicable,1|string|nullable',
             'pf_amount' => 'nullable|numeric|min:0',
 
             'esic_applicable' => 'boolean',
-            'esic_ip_number' => 'required_if:esic_applicable,1|string|nullable',
+            'esic_ip_number' => 'nullable:esic_applicable,1|string|nullable',
             'esic_amount' => 'nullable|numeric|min:0',
 
-            'effective_from' => 'required|date',
+            'effective_from' => 'nullable|date',
         ]);
 
         if ($validator->fails()) {
