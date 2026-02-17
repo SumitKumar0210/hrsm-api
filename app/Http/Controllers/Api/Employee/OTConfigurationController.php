@@ -16,7 +16,7 @@ class OTConfigurationController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => EmployeeOTConfiguration::latest()->get()
+            'data' => EmployeeOTConfiguration::with('employee', 'employee.department')->latest()->get()
         ], 200);
     }
 

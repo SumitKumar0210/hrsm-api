@@ -17,4 +17,9 @@ class Attendance extends Model
         'status',
         'is_corrected'
     ];
+
+    public function employees()
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
 }

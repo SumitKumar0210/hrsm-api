@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Designation\DesignationController;
 use App\Http\Controllers\Api\Employee\OnboardingController;
 use App\Http\Controllers\Api\Employee\OTConfigurationController;
 use App\Http\Controllers\Api\Leave\LeaveController;
+use App\Http\Controllers\Api\Payroll\PayrollController;
 use App\Http\Controllers\Api\RolePermission\RoleController;
 use App\Http\Controllers\Api\Salary\SalaryManagementController;
 use App\Http\Controllers\Api\Setting\SettingController;
@@ -62,6 +63,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('attendance')->group(function () {
         Route::post('/upload-csv', [AttendanceController::class, 'uploadAttendance']);
+        Route::post('/', [AttendanceController::class, 'index']);
     });
 
     Route::prefix('shifts')->group(function () {
@@ -114,6 +116,14 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('template')->group(function () {
         Route::get('/', [MailTemplateController::class, 'index']);
+        Route::post('/', [MailTemplateController::class, 'store']);
+        Route::get('{id}', [MailTemplateController::class, 'show']);
+        Route::post('{id}', [MailTemplateController::class, 'update']);
+        Route::delete('{id}', [MailTemplateController::class, 'destroy']);
+    });
+
+    Route::prefix('payroll')->group(function () {
+        Route::get('/', [PayrollController::class, 'index']);
         Route::post('/', [MailTemplateController::class, 'store']);
         Route::get('{id}', [MailTemplateController::class, 'show']);
         Route::post('{id}', [MailTemplateController::class, 'update']);

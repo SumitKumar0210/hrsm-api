@@ -11,6 +11,26 @@ use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        try {
+            $attendances = Attendance::with('employees:id,first_name,last_name,employee_code,department_id,shift_id',
+            'employees.department:id,name',
+            'employees.shift:id,name',
+            'employees.shift.employeeShift')
+            ->orderBy('date', 'desc')->latest()->get();
+            return response()->json([
+                'success' => true,
+                'data' => $attendances,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => "something went wrong",
+                'message' => $e->getMessage()
+            ], 442);
+        }
+    }
     public function uploadAttendance(Request $request): JsonResponse
     {
         $rows = $request->input('rows', []);
@@ -25,6 +45,8 @@ class AttendanceController extends Controller
         $result = [];
 
         foreach ($rows as $row) {
+            // return response()->json(['
+            // data' => $row]);
             try {
                 /* ================= REQUIRED FIELDS ================= */
                 if (
@@ -33,7 +55,7 @@ class AttendanceController extends Controller
                     empty($row['SignIn']) ||
                     empty($row['SignOut'])
                 ) {
-                    throw new \Exception('Required fields missing');
+                    throw new \Exception('Required fields missing',);
                 }
 
                 /* ================= EMPLOYEE ================= */
