@@ -38,14 +38,14 @@ class MailTemplateController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => [
+            'title' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('templates', 'name')->whereNull('deleted_at'),
+                Rule::unique('templates', 'title')->whereNull('deleted_at'),
             ],
             'subject' => 'required|string|max:255',
-            'draft'   => 'required|string',
+            'body'   => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -56,9 +56,9 @@ class MailTemplateController extends Controller
         }
 
         $template = Template::create([
-            'name'    => $request->name,
+            'title'    => $request->title,
             'subject' => $request->subject,
-            'draft'   => $request->draft,
+            'body'   => $request->body,
         ]);
 
         return response()->json([

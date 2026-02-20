@@ -13,6 +13,7 @@ class EmployeeSalary extends Model
         'basic_salary',
         'hra',
         'medical',
+        'conveyance_allowance',
         'special_allowance',
         'overtime_rate',
         'pf_applicable',

@@ -56,6 +56,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::get('/', [OnboardingController::class, 'index']);
         Route::get('/{id}', [OnboardingController::class, 'show']);
         Route::post('/{id}', [OnboardingController::class, 'update']);
+        // Route::post('/{id}', function (){return response()->json(['success'=>true,'message'=> 'pass']);});
         Route::patch('/{id}/status', [OnboardingController::class, 'toggleStatus']);
         Route::post('/search', [OnboardingController::class, 'search']);
         Route::post('/onboarding', [OnboardingController::class, 'store']);
@@ -64,6 +65,8 @@ Route::middleware('auth:api', 'single.device')->group(function () {
     Route::prefix('attendance')->group(function () {
         Route::post('/upload-csv', [AttendanceController::class, 'uploadAttendance']);
         Route::post('/', [AttendanceController::class, 'index']);
+        Route::post('/employee/{id}', [AttendanceController::class, 'employeeAttendance']);
+        Route::post('/correct', [AttendanceController::class, 'correction']);
     });
 
     Route::prefix('shifts')->group(function () {
@@ -106,15 +109,15 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::delete('{id}', [OTConfigurationController::class, 'destroy']);
     });
 
-    Route::prefix('template-variable')->group(function () {
+    Route::prefix('template-variables')->group(function () {
+        // Route::get('/', function(){return response()->json(['success' => true, 'data' => []]);});
         Route::get('/', [TemplateVariableController::class, 'index']);
+        Route::get('/table-variable', [TemplateVariableController::class, 'tableVariables']);
         Route::post('/', [TemplateVariableController::class, 'store']);
-        Route::get('{id}', [TemplateVariableController::class, 'show']);
-        Route::post('{id}', [TemplateVariableController::class, 'update']);
         Route::delete('{id}', [TemplateVariableController::class, 'destroy']);
     });
 
-    Route::prefix('template')->group(function () {
+    Route::prefix('templates')->group(function () {
         Route::get('/', [MailTemplateController::class, 'index']);
         Route::post('/', [MailTemplateController::class, 'store']);
         Route::get('{id}', [MailTemplateController::class, 'show']);
@@ -124,6 +127,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('payroll')->group(function () {
         Route::get('/', [PayrollController::class, 'index']);
+        Route::post('/process', [PayrollController::class, 'processPayroll']);
         Route::post('/', [MailTemplateController::class, 'store']);
         Route::get('{id}', [MailTemplateController::class, 'show']);
         Route::post('{id}', [MailTemplateController::class, 'update']);

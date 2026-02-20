@@ -40,6 +40,7 @@ class SalaryManagementController extends Controller
             'medical_allowance' => 'nullable|numeric|min:0',
             'special_allowance' => 'nullable|numeric|min:0',
             'overtime_rate' => 'nullable|numeric|min:0',
+            'conveyance_allowance' => 'nullable|numeric|min:0',
 
             'pf_applicable' => 'boolean',
             'uan_number' => 'nullable:pf_applicable,1|string|nullable',
@@ -77,7 +78,8 @@ class SalaryManagementController extends Controller
             $previous = $previousSalary ? [
                 'basic_salary' => $previousSalary->basic_salary,
                 'hra' => $previousSalary->hra,
-                'medical_allowance' => $previousSalary->medical_allowance,
+                'medical' => $previousSalary->medical_allowance,
+                'conveyance_allowance' => $previousSalary->conveyance_allowance,
                 'special_allowance' => $previousSalary->special_allowance,
                 'overtime_rate' => $previousSalary->overtime_rate,
                 'gross_salary' => $previousSalary->gross_salary,
@@ -103,7 +105,8 @@ class SalaryManagementController extends Controller
 
                 'basic_salary' => $request->basic_salary,
                 'hra' => $request->hra,
-                'medical_allowance' => $request->medical_allowance,
+                'medical' => $request->medical_allowance,
+                'conveyance_allowance' => $request->conveyance_allowance,
                 'special_allowance' => $request->special_allowance,
                 'overtime_rate' => $request->overtime_rate,
 

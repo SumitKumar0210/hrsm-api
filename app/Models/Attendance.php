@@ -15,11 +15,18 @@ class Attendance extends Model
         'sign_out',
         'total_hours',
         'status',
-        'is_corrected'
+        'is_corrected',
+        'action_by',
+        'reason'
     ];
 
     public function employees()
     {
         return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class,'action_by');
     }
 }

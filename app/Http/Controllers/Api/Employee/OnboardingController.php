@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\OnboardingMail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class OnboardingController extends Controller
@@ -56,7 +57,7 @@ class OnboardingController extends Controller
             'job_role'        => 'required|exists:designations,id',
             'department'      => 'required|exists:departments,id',
             'shift_id'        => 'required|exists:shifts,id',
-            
+
             // Shift Timings (for rotational shifts)
             'shift_check_in_timing'  => 'nullable|date_format:H:i',
             'shift_check_out_timing' => 'nullable|date_format:H:i|after:shift_check_in_timing',
@@ -87,14 +88,14 @@ class OnboardingController extends Controller
         $validated = $validator->validated();
 
         DB::beginTransaction();
-        
+
         try {
             $user = null;
 
             // Create User if is_application_user is true
             if ($request->boolean('is_application_user')) {
                 $temporaryPassword = Str::random(10);
-                
+
                 $user = User::create([
                     'name'     => trim($validated['first_name'] . ' ' . $validated['last_name']),
                     'email'    => $validated['email'],
@@ -108,29 +109,29 @@ class OnboardingController extends Controller
             $employee = Employee::create([
                 'user_id'         => $user?->id,
                 'employee_code'   => $this->generateEmployeeCode(),
-                
+
                 // Basic Info
                 'first_name'      => $validated['first_name'],
                 'last_name'       => $validated['last_name'],
                 'email'           => $validated['email'],
                 'mobile'          => $validated['phone'],
-                
+
                 // Address
                 'address'         => $validated['address'],
                 'city'            => $validated['city'],
                 'state'           => $validated['state'],
                 'zip_code'        => $validated['pin_code'],
-                
+
                 // Work Details
                 'source'          => $validated['source'],
                 'designation_id'  => $validated['job_role'],
                 'department_id'   => $validated['department'],
                 'shift_id'        => $validated['shift_id'],
-                
+
                 // Personal Details
                 'blood_group'     => $validated['blood_group'] ?? null,
                 'aadhar_number'   => $validated['aadhar_no'] ?? null,
-                
+
             ]);
 
             // Handle document uploads AFTER employee is created
@@ -174,19 +175,17 @@ class OnboardingController extends Controller
                 'message' => 'Employee onboarded successfully',
                 'data'    => $employee->load(['user', 'department', 'designation', 'shift'])
             ], 201);
-
         } catch (ValidationException $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
                 'errors'  => $e->errors()
             ], 422);
-
         } catch (\Throwable $e) {
             DB::rollBack();
-            
+
             Log::error('Employee onboarding error', [
                 'message' => $e->getMessage(),
                 'line'    => $e->getLine(),
@@ -208,7 +207,7 @@ class OnboardingController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Employee::with(['user', 'department', 'shift','shift.employeeShift', 'designation', 'documents','salaries']);
+            $query = Employee::with(['user', 'department', 'shift', 'shift.employeeShift', 'designation', 'documents', 'salaries']);
 
             // Apply filters
             if ($request->filled('search')) {
@@ -246,7 +245,6 @@ class OnboardingController extends Controller
                     'to' => $employees->lastItem(),
                 ]
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Employee list error', [
                 'message' => $e->getMessage(),
@@ -286,13 +284,12 @@ class OnboardingController extends Controller
                 $query->where('status', $request->status);
             }
 
-           $employees = $query->latest()->get();
+            $employees = $query->latest()->get();
 
             return response()->json([
                 'success' => true,
                 'data' => $employees,
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Employee list error', [
                 'message' => $e->getMessage(),
@@ -312,11 +309,11 @@ class OnboardingController extends Controller
     {
         try {
             $employee = Employee::with([
-                'user', 
-                'department', 
+                'user',
+                'department',
                 'shift',
-                'shift.employeeShift', 
-                'designation', 
+                'shift.employeeShift',
+                'designation',
                 'documents'
             ])->findOrFail($id);
 
@@ -324,13 +321,11 @@ class OnboardingController extends Controller
                 'success' => true,
                 'data' => $employee
             ], 200);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Employee not found'
             ], 404);
-
         } catch (\Throwable $e) {
             Log::error('Employee show error', [
                 'employee_id' => $id,
@@ -351,108 +346,142 @@ class OnboardingController extends Controller
     {
         try {
             $employee = Employee::with('user')->findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Employee not found',
+            ], 404);
+        }
 
-            $validator = Validator::make($request->all(), [
-                // Basic Info
-                'first_name'      => 'sometimes|string|max:100',
-                'last_name'       => 'sometimes|string|max:100',
-                'email'           => 'sometimes|email|unique:users,email,' . $employee->user_id . '|unique:employees,email,' . $id,
-                'phone'           => 'sometimes|string|max:15',
+        // ── Validation ────────────────────────────────────────────────────────────
+        $validator = Validator::make($request->all(), [
+            // Basic Info
+            'first_name' => 'sometimes|string|max:100',
+            'last_name'  => 'sometimes|string|max:100',
+            'email'      => [
+                'sometimes',
+                'email',
 
-                // Address
-                'address'         => 'sometimes|string|max:255',
-                'city'            => 'sometimes|string|max:100',
-                'state'           => 'sometimes|string|max:100',
-                'pin_code'        => 'sometimes|string|max:10',
+                Rule::unique('employees', 'email')->ignore($employee->id),
+            ],
+            'phone'      => 'sometimes|string|max:15',
 
-                // Work Details
-                'source'          => 'sometimes|string|in:referral,walk-in,online',
-                'job_role'        => 'sometimes|exists:designations,id',
-                'department'      => 'sometimes|exists:departments,id',
-                'shift_id'        => 'sometimes|exists:shifts,id',
-                
-                // Shift Timings
-                'shift_check_in_timing'  => 'nullable|date_format:H:i',
-                'shift_check_out_timing' => 'nullable|date_format:H:i|after:shift_check_in_timing',
+            // Address
+            'address'    => 'sometimes|string|max:255',
+            'city'       => 'sometimes|string|max:100',
+            'state'      => 'sometimes|string|max:100',
+            'pin_code'   => 'sometimes|string|max:10',
 
-                // Personal Details
-                'blood_group'     => 'sometimes|string|in:A+,A-,B+,B-,O+,O-,AB+,AB-',
-                'aadhar_no'       => 'sometimes|string|size:12|regex:/^[2-9][0-9]{11}$/',
+            // Work Details
+            'source'     => 'sometimes|string|in:referral,walk-in,online',
+            'job_role'   => 'sometimes|exists:designations,id',
+            'department' => 'sometimes|exists:departments,id',
+            'shift_id'   => 'sometimes|exists:shifts,id',
 
-                // Documents
-                'idProof'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
-                'addressProof'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
-                'bankDetails'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
-                'contractLetter'  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
-                'profileImage'    => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
-            ]);
+            // Shift Timings
+            'shift_check_in_timing'  => 'nullable|date_format:H:i',
+            'shift_check_out_timing' => 'nullable|date_format:H:i|after:shift_check_in_timing',
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors'  => $validator->errors()
-                ], 422);
+            // Personal Details
+            'blood_group' => 'sometimes|string|in:A+,A-,B+,B-,O+,O-,AB+,AB-',
+            'aadhar_no'   => 'sometimes|string|size:12|regex:/^[2-9][0-9]{11}$/',
+
+            // Documents
+            'idProof'        => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'addressProof'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'bankDetails'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'contractLetter' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'profileImage'   => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+
+        $fieldMap = [
+            'first_name'     => 'first_name',
+            'last_name'      => 'last_name',
+            'email'          => 'email',
+            'phone'          => 'mobile',
+            'address'        => 'address',
+            'city'           => 'city',
+            'state'          => 'state',
+            'pin_code'       => 'zip_code',
+            'source'         => 'source',
+            'job_role'       => 'designation_id',
+            'department'     => 'department_id',
+            'shift_id'       => 'shift_id',
+            'blood_group'    => 'blood_group',
+            'aadhar_no'      => 'aadhar_number',
+        ];
+
+        $updateData = [];
+        foreach ($fieldMap as $requestKey => $column) {
+            if ($request->has($requestKey)) {
+                $updateData[$column] = $request->input($requestKey);
             }
+        }
 
+        try {
             DB::beginTransaction();
 
-            // Update user if email/name changed and user exists
             if ($employee->user && $request->hasAny(['first_name', 'last_name', 'email'])) {
                 $employee->user->update([
-                    'name' => trim(
-                        ($request->first_name ?? $employee->first_name) . ' ' .
-                        ($request->last_name ?? $employee->last_name)
+                    'name'  => trim(
+                        ($updateData['first_name'] ?? $employee->first_name) . ' ' .
+                            ($updateData['last_name']  ?? $employee->last_name)
                     ),
-                    'email' => $request->email ?? $employee->email,
+                    'email' => $updateData['email'] ?? $employee->user->email,
                 ]);
             }
 
-            // Prepare employee update data
-            $updateData = [];
-            
-            if ($request->has('first_name')) $updateData['first_name'] = $request->first_name;
-            if ($request->has('last_name')) $updateData['last_name'] = $request->last_name;
-            if ($request->has('email')) $updateData['email'] = $request->email;
-            if ($request->has('phone')) $updateData['mobile'] = $request->phone;
-            if ($request->has('address')) $updateData['address'] = $request->address;
-            if ($request->has('city')) $updateData['city'] = $request->city;
-            if ($request->has('state')) $updateData['state'] = $request->state;
-            if ($request->has('pin_code')) $updateData['pin_code'] = $request->pin_code;
-            if ($request->has('source')) $updateData['source'] = $request->source;
-            if ($request->has('job_role')) $updateData['designation_id'] = $request->job_role;
-            if ($request->has('department')) $updateData['department_id'] = $request->department;
-            if ($request->has('shift_id')) $updateData['shift_id'] = $request->shift_id;
-            if ($request->has('blood_group')) $updateData['blood_group'] = $request->blood_group;
-            if ($request->has('aadhar_no')) $updateData['aadhar_number'] = $request->aadhar_no;
-
-            // Handle document uploads if any new files
+            // ── Document uploads ──────────────────────────────────────────────────
             if ($request->hasAny(array_keys(self::DOCUMENT_TYPES))) {
                 $uploads = $this->handleUploads($request, $employee->id);
-                
-                if (isset($uploads['idProof'])) $updateData['id_proof'] = $uploads['idProof'];
-                if (isset($uploads['addressProof'])) $updateData['address_proof'] = $uploads['addressProof'];
-                if (isset($uploads['bankDetails'])) $updateData['bank_details'] = $uploads['bankDetails'];
-                if (isset($uploads['contractLetter'])) $updateData['contract_letter'] = $uploads['contractLetter'];
-                if (isset($uploads['profileImage'])) $updateData['profile_image'] = $uploads['profileImage'];
-                
-                // Update document records
+
+                $docMap = [
+                    'idProof'        => 'id_proof',
+                    'addressProof'   => 'address_proof',
+                    'bankDetails'    => 'bank_details',
+                    'contractLetter' => 'contract_letter',
+                    'profileImage'   => 'profile_image',
+                ];
+
+                foreach ($docMap as $inputKey => $column) {
+                    if (isset($uploads[$inputKey])) {
+                        $updateData[$column] = $uploads[$inputKey];
+                    }
+                }
+
                 $this->createDocumentRecords($employee->id, $uploads);
             }
 
-            // Update employee
-            $employee->update($updateData);
+            // ── Persist employee changes ──────────────────────────────────────────
+            if (!empty($updateData)) {
+                $employee->update($updateData);
+            }
 
-            // Update shift log if shift timings changed
-            if ($request->has('shift_check_in_timing') || $request->has('shift_check_out_timing')) {
-                EmployeeShiftLog::updateOrCreate(
-                    ['employee_id' => $employee->id, 'shift_id' => $employee->shift_id],
-                    [
-                        'sign_in'   => $request->shift_check_in_timing,
-                        'sign_out'  => $request->shift_check_out_timing,
-                        'action_by' => auth()->id() ?? null,
-                    ]
-                );
+            // ── Shift log ─────────────────────────────────────────────────────────
+
+            if ($request->hasAny(['shift_check_in_timing', 'shift_check_out_timing'])) {
+
+                EmployeeShiftLog::where('employee_id', $employee->id)
+                    ->where('status', 'active')
+                    ->update(['status' => 'inactive']);
+
+                EmployeeShiftLog::create([
+                    'employee_id' => $employee->id,
+                    'shift_id'    => $employee->shift_id,
+                    'sign_in'     => $request->shift_check_in_timing,
+                    'sign_out'    => $request->shift_check_out_timing,
+                    'status'      => 'active',
+                    'action_by'   => auth()->id(),
+                ]);
             }
 
             DB::commit();
@@ -460,28 +489,22 @@ class OnboardingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Employee updated successfully',
-                'data' => $employee->fresh(['user', 'department', 'designation', 'shift'])
+                // FIX: match the same relations as index() for a consistent response shape
+                'data'    => $employee->fresh(['user', 'department', 'designation', 'shift', 'salaries', 'documents']),
             ], 200);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Employee not found'
-            ], 404);
-
         } catch (\Throwable $e) {
             DB::rollBack();
 
             Log::error('Employee update error', [
                 'employee_id' => $id,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'message'     => $e->getMessage(),
+                'trace'       => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Employee update failed',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred'
+                'error'   => config('app.debug') ? $e->getMessage() : 'An error occurred',
             ], 500);
         }
     }
@@ -514,13 +537,11 @@ class OnboardingController extends Controller
                 'success' => true,
                 'message' => 'Employee deleted successfully'
             ], 200);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Employee not found'
             ], 404);
-
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -562,13 +583,11 @@ class OnboardingController extends Controller
                 'message' => 'Employee status updated successfully',
                 'data' => $employee
             ], 200);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Employee not found'
             ], 404);
-
         } catch (\Throwable $e) {
             Log::error('Employee status toggle error', [
                 'employee_id' => $id,
@@ -622,7 +641,6 @@ class OnboardingController extends Controller
                     );
 
                     $uploads[$field] = $path;
-
                 } catch (\Exception $e) {
                     Log::error("Failed to upload {$field}", [
                         'employee_id' => $employeeId,

@@ -10,8 +10,8 @@ class Template extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'name',
-        'draft',
+        'title',
+        'body',
         'subject',
         'status',
     ];
