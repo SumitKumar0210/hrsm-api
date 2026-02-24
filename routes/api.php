@@ -56,6 +56,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::get('/', [OnboardingController::class, 'index']);
         Route::get('/{id}', [OnboardingController::class, 'show']);
         Route::post('/{id}', [OnboardingController::class, 'update']);
+        Route::delete('{id}', [OnboardingController::class, 'destroy']);
         // Route::post('/{id}', function (){return response()->json(['success'=>true,'message'=> 'pass']);});
         Route::patch('/{id}/status', [OnboardingController::class, 'toggleStatus']);
         Route::post('/search', [OnboardingController::class, 'search']);
@@ -65,6 +66,8 @@ Route::middleware('auth:api', 'single.device')->group(function () {
     Route::prefix('attendance')->group(function () {
         Route::post('/upload-csv', [AttendanceController::class, 'uploadAttendance']);
         Route::post('/', [AttendanceController::class, 'index']);
+        // Route::post('/update', function() {return response()->json(['success'=>true,'message'=>'dsfsdfdf']);});
+        Route::post('/update', [AttendanceController::class, 'update']);
         Route::post('/employee/{id}', [AttendanceController::class, 'employeeAttendance']);
         Route::post('/correct', [AttendanceController::class, 'correction']);
     });
@@ -128,6 +131,9 @@ Route::middleware('auth:api', 'single.device')->group(function () {
     Route::prefix('payroll')->group(function () {
         Route::get('/', [PayrollController::class, 'index']);
         Route::post('/process', [PayrollController::class, 'processPayroll']);
+        // Route::post('/process/attendance', function(){return response()->json(['success'=>true,'message'=>'test']);});
+        Route::post('/process/attendance', [PayrollController::class, 'processAttendance']);
+        Route::post('/history', [PayrollController::class, 'historyWithEmpId']);
         Route::post('/', [MailTemplateController::class, 'store']);
         Route::get('{id}', [MailTemplateController::class, 'show']);
         Route::post('{id}', [MailTemplateController::class, 'update']);

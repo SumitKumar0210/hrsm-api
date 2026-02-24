@@ -418,6 +418,7 @@ class OnboardingController extends Controller
             'shift_id'       => 'shift_id',
             'blood_group'    => 'blood_group',
             'aadhar_no'      => 'aadhar_number',
+            'date_of_joining' => 'date_of_joining',
         ];
 
         $updateData = [];

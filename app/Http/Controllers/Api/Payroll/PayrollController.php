@@ -34,11 +34,16 @@ class PayrollController extends Controller
 
         try {
 
-            $monthString = 'Jan 2026';
-            $date = Carbon::createFromFormat('M Y', $monthString);
+            // $monthString = 'Jan 2026';
+            // $date = Carbon::createFromFormat('M Y', $monthString);
+            // $startOfMonth = $date->copy()->startOfMonth();
+            // $endOfMonth   = $date->copy()->endOfMonth();
+            // $daysInMonth  = $date->daysInMonth;
 
-            $month = $date->month;
-            $year  = $date->year;
+            $month = $request->input('month.month');
+            $year  = $request->input('month.year');
+
+            $date = Carbon::createFromDate($year, $month, 1);
 
             $startOfMonth = $date->copy()->startOfMonth();
             $endOfMonth   = $date->copy()->endOfMonth();
@@ -61,6 +66,7 @@ class PayrollController extends Controller
                     ->get();
 
                 $presentDays = $attendances->where('status', 'present')->count();
+                $absentDays = $attendances->where('status', 'absent')->count();
 
                 // Weekoff calculation
                 $weekOffDay = $employee->week_off; // 0=Sunday, 6=Saturday
@@ -125,6 +131,90 @@ class PayrollController extends Controller
 
             return response()->json([
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function historyWithEmpId(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $employeeId = $request->input('id');
+            $employee = Employee::find($employeeId);
+            if (!$employee) {
+                return response()->json([
+                    'error' => 'Employee not found'
+                ], 404);
+            }
+
+            $histories = Payroll::where('employee_id', $employeeId)->get();
+
+            return response()->json([
+                'message' => 'Payroll history retrieved successfully',
+                'data' => $histories
+            ]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // public function processAttendance(Request $request)
+    // {
+    //     $month = $request->month;
+    //     $year = $month->year;
+    //     try {
+    //         $attendace = Attendance::whereMonth('date', $month->month)
+    //             ->whereYear('date', $year)->get();
+    //         $employeeIds = (clone $attendace)->pluck('employee_id');
+    //         $employees = Employee::whereIn('employee_id', $employeeIds)
+    //             ->get(['id', 'first_name', 'last_name', 'employee_code']);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'attendace' => $attendace,
+    //             'employees' => $employees
+    //         ]);
+    //     } catch (Exception $e) {
+    //     }
+    // }
+
+    public function processAttendance(Request $request)
+    {
+        try {
+
+            $month = $request->input('month.month');
+            $year  = $request->input('month.year');
+
+            if (!$month || !$year) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Month and Year are required.'
+                ], 422);
+            }
+
+            $attendace = Attendance::whereMonth('date', $month)
+                ->whereYear('date', $year)->get();
+            $employeeIds = (clone $attendace)->pluck('employee_id')->unique();
+            $employees = Employee::whereIn('id', $employeeIds)
+                ->get(['id', 'first_name', 'last_name', 'employee_code']);
+
+            return response()->json([
+                'success' => true,
+                'attendace' => $attendace,
+                'employees' => $employees
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong.',
+                'error'   => $e->getMessage()
             ], 500);
         }
     }

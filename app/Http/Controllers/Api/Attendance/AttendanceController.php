@@ -8,6 +8,7 @@ use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
@@ -378,5 +379,71 @@ class AttendanceController extends Controller
         ];
 
         return $arr[$status];
+    }
+
+    public function update(Request $request)
+    {
+        try {
+
+            $rows = collect($request->rows);
+
+            if ($rows->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No data provided.'
+                ], 422);
+            }
+
+            $attendanceIds = $rows->pluck('attendance_id')->unique();
+
+            $attendances = Attendance::whereIn('id', $attendanceIds)
+                ->get()
+                ->keyBy('id');
+
+            $data = [];
+
+            foreach ($rows as $row) {
+
+                if (!isset($attendances[$row['attendance_id']])) {
+                    continue;
+                }
+
+                $attendance = $attendances[$row['attendance_id']];
+
+                if (
+                    $attendance->employee_id != $row['employee_id'] ||
+                    $attendance->date != $row['date']
+                ) {
+                    continue;
+                }
+
+                $attendance->update([
+                    'sign_in'  => $row['sign_in'],
+                    'sign_out' => $row['sign_out'],
+                    'status'   => $row['status'],
+                ]);
+
+                // Correct way to push data
+                $data[] = [
+                    'id'       => $row['attendance_id'],
+                    'sign_in'  => $row['sign_in'],
+                    'sign_out' => $row['sign_out'],
+                    'status'   => $row['status'],
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'message' => 'Attendance updated successfully.'
+            ]);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
 }
