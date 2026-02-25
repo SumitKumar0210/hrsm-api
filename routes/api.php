@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\Designation\DesignationController;
 use App\Http\Controllers\Api\Employee\OnboardingController;
 use App\Http\Controllers\Api\Employee\OTConfigurationController;
 use App\Http\Controllers\Api\Leave\LeaveController;
+use App\Http\Controllers\Api\Mail\SendTemplateMailController;
+use App\Http\Controllers\Api\Payroll\FinalizePayrollController;
 use App\Http\Controllers\Api\Payroll\PayrollController;
 use App\Http\Controllers\Api\RolePermission\RoleController;
 use App\Http\Controllers\Api\Salary\SalaryManagementController;
@@ -102,6 +104,15 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::post('{id}/reject', [LeaveController::class, 'reject']);
         Route::post('{id}/cancel', [LeaveController::class, 'cancel']);
         Route::delete('{id}', [LeaveController::class, 'destroy']);
+    });
+
+    Route::prefix('mails')->group(function () {
+        Route::post('/payroll-single-mail', [SendTemplateMailController::class, 'payrollSingleMail']);
+    });
+
+    Route::prefix('finalize-payroll')->group(function () {
+        Route::post('/', [FinalizePayrollController::class, 'finalizingMonth']);
+        Route::post('/store', [FinalizePayrollController::class, 'store']);
     });
 
     Route::prefix('emp-config')->group(function () {

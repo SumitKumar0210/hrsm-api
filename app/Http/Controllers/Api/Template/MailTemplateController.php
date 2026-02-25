@@ -42,7 +42,9 @@ class MailTemplateController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('templates', 'title')->whereNull('deleted_at'),
+                Rule::unique('templates', 'title')
+                    ->whereNull('deleted_at')
+                    ->ignore($request->template_id, 'id'),
             ],
             'subject' => 'required|string|max:255',
             'body'   => 'required|string',
@@ -55,11 +57,22 @@ class MailTemplateController extends Controller
             ], 422);
         }
 
-        $template = Template::create([
-            'title'    => $request->title,
-            'subject' => $request->subject,
-            'body'   => $request->body,
-        ]);
+        if ($request->template_id) {
+
+            $template = Template::find($request->template_id)->update([
+                'title'    => $request->title,
+                'subject' => $request->subject,
+                'body'   => $request->body,
+            ]);
+        } else {
+
+            $template = Template::create([
+                'title'    => $request->title,
+                'subject' => $request->subject,
+                'body'   => $request->body,
+            ]);
+        }
+
 
         return response()->json([
             'success' => true,
