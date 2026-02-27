@@ -14,12 +14,14 @@ class MailWithTemplate extends Mailable
     protected $employee;
     protected $template;
     protected $context; // generic context (payroll, offer, termination etc.)
+    public $pdfContent;
 
-    public function __construct($employee, $template, $context = null)
+    public function __construct($employee, $template, $context = null, $pdfContent = null)
     {
-        $this->employee = $employee;
-        $this->template = $template;
-        $this->context  = $context; // can be Payroll / OfferLetter / Termination etc.
+        $this->employee   = $employee;
+        $this->template   = $template;  // ✅
+        $this->context    = $context;
+        $this->pdfContent = $pdfContent; // ✅
     }
 
     public function build()
@@ -27,8 +29,17 @@ class MailWithTemplate extends Mailable
         $subject = $this->replaceVariables($this->template->subject);
         $content = $this->replaceVariables($this->template->body);
 
-        return $this->subject($subject)
-            ->html($content);
+        $mail = $this->subject($subject)->html($content);
+
+        if ($this->pdfContent) {
+            $mail->attachData(
+                $this->pdfContent,
+                'Salary Slip.pdf',
+                ['mime' => 'application/pdf']
+            );
+        }
+
+        return $mail;
     }
 
     private function replaceVariables($content)
@@ -88,7 +99,7 @@ class MailWithTemplate extends Mailable
             case 'special_allowance':
                 return number_format($employee->salaries[0]->special_allowance ?? 0);
 
-            /* ================= PAYROLL FIELDS ================= */
+                /* ================= PAYROLL FIELDS ================= */
 
             case 'month':
                 if ($context && isset($context->month)) {
@@ -112,8 +123,8 @@ class MailWithTemplate extends Mailable
             case 'total_deduction':
                 return number_format($context->total_deduction ?? 0);
 
-            /* ================= GENERIC CONTEXT FIELDS ================= */
-            // Works for OfferLetter, Termination etc.
+                /* ================= GENERIC CONTEXT FIELDS ================= */
+                // Works for OfferLetter, Termination etc.
             default:
                 if ($context && isset($context->{$key})) {
                     return $context->{$key};

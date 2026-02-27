@@ -10,84 +10,140 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Carbon\Carbon;
 
 class FinalizePayrollController extends Controller
 {
+    /**
+     * Parse month/year from a date string request param.
+     */
+    private function parseMonthYear(string $date): array
+    {
+        $parsed = Carbon::parse($date);
+        return [$parsed->month, $parsed->year];
+    }
 
+    /**
+     * Aggregate payroll summary for a given month/year.
+     */
+    private function getPayrollSummary(int $month, int $year): object
+    {
+        return Payroll::where('month', $month)
+            ->where('year', $year)
+            ->selectRaw('
+                COALESCE(SUM(gross_salary), 0) AS gross_amount,
+                COALESCE(SUM(pf_amount),    0) AS pf_amount,
+                COALESCE(SUM(esic_amount),  0) AS esic_amount,
+                COALESCE(SUM(net_salary),   0) AS net_amount
+            ')
+            ->first();
+    }
+
+    /**
+     * GET — Check finalization status for a given month.
+     */
     public function finalizingMonth(Request $request)
     {
         try {
-
             $request->validate([
-                'month' => 'required|integer|min:1|max:12',
-                'year'  => 'required|integer|min:2000',
+                'month' => 'required|date',
             ]);
 
-            $data = FinalizedPayroll::where('month', $request->month)
-                ->where('year', $request->year)
-                ->first();
+            [$month, $year] = $this->parseMonthYear($request->month);
+
+            $finalized      = FinalizedPayroll::where('month', $month)->where('year', $year)->first();
+            $payrollSummary = $this->getPayrollSummary($month, $year);
 
             return response()->json([
                 'success' => true,
-                'data'    => $data
+                'data'    => $finalized,
+                'payroll' => $payrollSummary,
             ]);
 
         } catch (Throwable $e) {
+            Log::error('finalizingMonth failed', ['error' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Something went wrong.',
             ], 500);
         }
     }
 
+    /**
+     * POST — Finalize payroll for a given month (prevent duplicate finalization).
+     */
     public function store(Request $request)
     {
-        try {
+        DB::beginTransaction();
 
+        try {
             $request->validate([
-                'month' => 'required|integer|min:1|max:12',
-                'year'  => 'required|integer|min:2000',
+                'month'                      => 'required|date',
+                'attendance_approval_status' => 'nullable|boolean',
+                'pf_calculation_status'      => 'nullable|boolean',
+                'esic_calculation_status'    => 'nullable|boolean',
+                'payslip_generation_status'  => 'nullable|boolean',
+                'compliance_status'          => 'nullable|boolean',
+                'management_approval_status' => 'nullable|boolean',
             ]);
 
-            $month = $request->month;
-            $year  = $request->year;
+            [$month, $year] = $this->parseMonthYear($request->month);
 
-            $exists = FinalizedPayroll::where('month', $month)
+            // Prevent duplicate finalization
+            $alreadyFinalized = FinalizedPayroll::where('month', $month)
                 ->where('year', $year)
                 ->exists();
 
-            if ($exists) {
-                throw ValidationException::withMessages([
-                    'month' => 'This month is already finalized.'
-                ]);
+            if ($alreadyFinalized) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Payroll for {$month}/{$year} has already been finalized.",
+                ], 409);
             }
 
-            DB::beginTransaction();
+            // Ensure payroll records exist before finalizing
+            $payrollSummary = $this->getPayrollSummary($month, $year);
 
-            $totals = Payroll::where('month', $month)
-                ->where('year', $year)
-                ->selectRaw('
-                    SUM(net_salary) as total_amount,
-                    SUM(pf_amount) as pf_amount,
-                    SUM(esic_amount) as esic_amount
-                ')
-                ->first();
+            if ((float) $payrollSummary->net_amount === 0.0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No payroll records found for this month. Please process payroll first.',
+                ], 422);
+            }
+            
 
-            $data = FinalizedPayroll::create([
-                'month' => $month,
-                'year'  => $year,
-                'total_amount' => $totals->total_amount ?? 0,
-                'pf_amount'    => $totals->pf_amount ?? 0,
-                'esic_amount'  => $totals->esic_amount ?? 0,
-                'action_by'    => auth()->id(),
-                'attendance_approval_status' => $request->attendance_approval_status,
-                'pf_calculation_status'      => $request->pf_calculation_status,
-                'esic_calculation_status'    => $request->esic_calculation_status,
-                'payslip_generation_status'  => $request->payslip_generation_status,
-                'compliance_status'          => $request->compliance_status,
-                'management_approval_status' => $request->management_approval_status,
-                'date_time' => now(),
+            // return response()->json([
+            //     'month'                      => $month,
+            //     'year'                       => $year,
+            //     'gross_amount'               => $payrollSummary->gross_amount,
+            //     'pf_amount'                  => $payrollSummary->pf_amount,
+            //     'esic_amount'                => $payrollSummary->esic_amount,
+            //     'net_amount'                 => $payrollSummary->net_amount,
+            //     'action_by'                  => auth()->id(),
+            //     'attendance_approval_status' => $request->attendance_approval_status,
+            //     'pf_calculation_status'      => $request->pf_calculation_status,
+            //     'esic_calculation_status'    => $request->esic_calculation_status??$request->pf_calculation_status,
+            //     'payslip_generation_status'  => $request->payslip_generation_status,
+            //     'compliance_status'          => $request->compliance_status,
+            //     // 'management_approval_status' => $request->management_approval_status?? 0,
+            //     'date_time'                  => now(),
+            // ]);
+            $finalized = FinalizedPayroll::create([
+                'month'                      => $month,
+                'year'                       => $year,
+                'total_amount'               => $payrollSummary->gross_amount,
+                'pf_amount'                  => $payrollSummary->pf_amount,
+                'esic_amount'                => $payrollSummary->esic_amount,
+                'net_amount'                 => $payrollSummary->net_amount,
+                'action_by'                  => auth()->id(),
+                'attendance_approval_status' => $request->attendance_approval_status ? 1 : 0,
+                'pf_calculation_status'      => $request->pf_calculation_status ? 1 : 0,
+                'esic_calculation_status'    => $request->esic_calculation_status??$request->pf_calculation_status,
+                'payslip_generation_status'  => $request->payslip_generation_status ? 1 : 0,
+                'compliance_status'          => $request->compliance_status ? 1 : 0,
+                // 'management_approval_status' => $request->management_approval_status?? 0,
+                'date_time'                  => now(),
             ]);
 
             DB::commit();
@@ -95,29 +151,29 @@ class FinalizePayrollController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Payroll finalized successfully.',
-                'data'    => $data
+                'data'    => $finalized,
+                'payroll' => $payrollSummary,
             ]);
 
         } catch (ValidationException $e) {
+            DB::rollBack();
 
             return response()->json([
                 'success' => false,
-                'errors'  => $e->errors()
+                'errors'  => $e->errors(),
             ], 422);
 
         } catch (Throwable $e) {
-
             DB::rollBack();
 
             Log::error('Payroll Finalization Failed', [
                 'error' => $e->getMessage(),
                 'month' => $request->month ?? null,
-                'year'  => $request->year ?? null,
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Something went wrong while finalizing payroll.'
+                'message' => 'Something went wrong while finalizing payroll.',
             ], 500);
         }
     }

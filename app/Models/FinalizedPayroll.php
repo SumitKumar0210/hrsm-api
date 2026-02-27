@@ -10,7 +10,7 @@ class FinalizedPayroll extends Model
     protected $fillable = [
        'month',
        'year',
-       'total_amount',
+       'gross_amount',
        'pf_amount',
        'esic_amount',
        'action_by',
@@ -21,5 +21,6 @@ class FinalizedPayroll extends Model
        'payslip_generation_status',
        'compliance_status',
        'management_approval_status',
+       'net_amount',
     ];
 }

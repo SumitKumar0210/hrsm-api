@@ -28,113 +28,268 @@ class PayrollController extends Controller
         }
     }
 
+    // public function processPayroll(Request $request)
+    // {
+    //     DB::beginTransaction();
+
+    //     try {
+
+    //         // $monthString = 'Jan 2026';
+    //         // $date = Carbon::createFromFormat('M Y', $monthString);
+    //         // $startOfMonth = $date->copy()->startOfMonth();
+    //         // $endOfMonth   = $date->copy()->endOfMonth();
+    //         // $daysInMonth  = $date->daysInMonth;
+
+    //         $month = $request->input('month.month');
+    //         $year  = $request->input('month.year');
+
+    //         $date = Carbon::createFromDate($year, $month, 1);
+
+    //         $startOfMonth = $date->copy()->startOfMonth();
+    //         $endOfMonth   = $date->copy()->endOfMonth();
+    //         $daysInMonth  = $date->daysInMonth;
+
+    //         $totalWeeks = ceil($daysInMonth / 7);
+
+    //         $employees = Employee::with('salaries', 'shift', 'shift.employeeShift')
+    //             ->where('status', 'active')
+    //             // ->whereIn('id', ['2'])
+    //             ->get();
+    //         foreach ($employees as $employee) {
+    //             $salary = $employee->salaries;
+    //             if ($salary->isEmpty()) {
+    //                 continue;
+    //             }
+
+    //             $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
+    //                 ->where('employee_id', $employee->id)
+    //                 ->get();
+
+    //             $presentDays = $attendances->where('status', 'present')->count();
+    //             $absentDays = $attendances->where('status', 'absent')->count();
+
+    //             // Weekoff calculation
+    //             $weekOffDay = $employee->week_off; // 0=Sunday, 6=Saturday
+
+    //             $weekOffCount = 0;
+
+    //             for ($date = $startOfMonth->copy(); $date <= $endOfMonth; $date->addDay()) {
+    //                 if ($date->dayOfWeek == $weekOffDay) {
+    //                     $weekOffCount++;
+    //                 }
+    //             }
+    //             $empWeekoff = $weekOffCount;
+
+    //             $totalWorkingDays = $daysInMonth - $empWeekoff;
+
+    //             if ($totalWorkingDays <= 0) {
+    //                 continue;
+    //             }
+
+    //             $basicSalary = $salary[0]->basic_salary ?? 0;
+    //             $monthlyReward =
+    //                 ($salary[0]->hra ?? 0) +
+    //                 ($salary[0]->medical ?? 0) +
+    //                 ($salary[0]->conveyance_allowance ?? 0) +
+    //                 ($salary[0]->special_allowance ?? 0);
+
+    //             $monthlyGross = $basicSalary + $monthlyReward;
+
+    //             $perDaySalary = $basicSalary / $daysInMonth;
+
+    //             $grossAmount = round($perDaySalary * ($presentDays + $empWeekoff), 2);
+
+    //             $netAmount = $grossAmount + $monthlyReward;
+    //             Payroll::updateOrCreate(
+    //                 [
+    //                     'employee_id' => $employee->id,
+    //                     'month' => $month,
+    //                     'year' => $year,
+    //                 ],
+    //                 [
+    //                     'total_days' => $daysInMonth,
+    //                     'present_days' => $presentDays,
+    //                     'paid_leaves' => 0,
+    //                     'lop' => 0,
+    //                     'half_days' => 0,
+    //                     'gross_salary' => $grossAmount,
+    //                     'deductions' => 0,
+    //                     'net_salary' => $netAmount,
+    //                 ]
+    //             );
+    //         }
+
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'message' => 'Payroll processed successfully'
+    //         ]);
+    //     } catch (\Exception $e) {
+
+    //         DB::rollBack();
+
+    //         return response()->json([
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+
     public function processPayroll(Request $request)
     {
         DB::beginTransaction();
 
         try {
-
-            // $monthString = 'Jan 2026';
-            // $date = Carbon::createFromFormat('M Y', $monthString);
-            // $startOfMonth = $date->copy()->startOfMonth();
-            // $endOfMonth   = $date->copy()->endOfMonth();
-            // $daysInMonth  = $date->daysInMonth;
-
             $month = $request->input('month.month');
             $year  = $request->input('month.year');
 
-            $date = Carbon::createFromDate($year, $month, 1);
-
+            $date         = Carbon::createFromDate($year, $month, 1);
             $startOfMonth = $date->copy()->startOfMonth();
             $endOfMonth   = $date->copy()->endOfMonth();
             $daysInMonth  = $date->daysInMonth;
 
-            $totalWeeks = ceil($daysInMonth / 7);
-
-            $employees = Employee::with('salaries', 'shift', 'shift.employeeShift')
+            $employees = Employee::with(['salaries', 'shift', 'shift.employeeShift'])
                 ->where('status', 'active')
-                // ->whereIn('id', ['2'])
                 ->get();
-            foreach ($employees as $employee) {
-                $salary = $employee->salaries;
-                if ($salary->isEmpty()) {
-                    continue;
-                }
 
+            foreach ($employees as $employee) {
+                $salary = $employee->salaries->first(); // ✅ use first() not array index
+
+                if (!$salary) continue;
+
+                // ── ATTENDANCE ────────────────────────────────────────────────
                 $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
                     ->where('employee_id', $employee->id)
                     ->get();
 
                 $presentDays = $attendances->where('status', 'present')->count();
-                $absentDays = $attendances->where('status', 'absent')->count();
+                $halfDays    = $attendances->where('status', 'half_day')->count();
+                $lopDays     = $attendances->where('status', 'absent')->count();
 
-                // Weekoff calculation
-                $weekOffDay = $employee->week_off; // 0=Sunday, 6=Saturday
-
+                // ── WEEK-OFFS IN MONTH ────────────────────────────────────────
+                $weekOffDay   = $employee->week_off; // 0=Sunday … 6=Saturday
                 $weekOffCount = 0;
 
-                for ($date = $startOfMonth->copy(); $date <= $endOfMonth; $date->addDay()) {
-                    if ($date->dayOfWeek == $weekOffDay) {
+                for ($d = $startOfMonth->copy(); $d <= $endOfMonth; $d->addDay()) {
+                    if ($d->dayOfWeek == $weekOffDay) {
                         $weekOffCount++;
                     }
                 }
-                $empWeekoff = $weekOffCount;
 
-                $totalWorkingDays = $daysInMonth - $empWeekoff;
+                $totalWorkingDays = $daysInMonth - $weekOffCount;
 
-                if ($totalWorkingDays <= 0) {
-                    continue;
-                }
+                if ($totalWorkingDays <= 0) continue;
 
-                $basicSalary = $salary[0]->basic_salary ?? 0;
-                $monthlyReward =
-                    ($salary[0]->hra ?? 0) +
-                    ($salary[0]->medical ?? 0) +
-                    ($salary[0]->conveyance_allowance ?? 0) +
-                    ($salary[0]->special_allowance ?? 0);
+                // ── SALARY COMPONENTS (from salary table schema) ──────────────
+                $basicSalary         = (float) ($salary->basic_salary          ?? 0);
+                $hra                 = (float) ($salary->hra                    ?? 0);
+                $medical             = (float) ($salary->medical                ?? 0);
+                $conveyanceAllowance = (float) ($salary->conveyance_allowance   ?? 0);
+                $specialAllowance    = (float) ($salary->special_allowance      ?? 0);
+                $overtimeRate        = (float) ($salary->overtime_rate          ?? 0); // hourly
+                $pfApplicable        = (bool)  ($salary->pf_applicable          ?? false);
+                $esicApplicable      = (bool)  ($salary->esic_applicable        ?? false);
 
-                $monthlyGross = $basicSalary + $monthlyReward;
+                $totalAllowances = $hra + $medical + $conveyanceAllowance + $specialAllowance;
+                $monthlyGross    = $basicSalary + $totalAllowances;
 
-                $perDaySalary = $basicSalary / $daysInMonth;
+                // ── PER-DAY RATE (based on total working days, not calendar days) ──
+                $perDaySalary = $monthlyGross / $totalWorkingDays;
 
-                $grossAmount = round($perDaySalary * ($presentDays + $empWeekoff), 2);
+                // ── EFFECTIVE PAID DAYS ───────────────────────────────────────
+                // present + week-offs are paid; half-days count as 0.5; LOP = deducted
+                $effectivePaidDays = $presentDays + $weekOffCount + ($halfDays * 0.5);
 
-                $netAmount = $grossAmount + $monthlyReward;
+                // ── GROSS (what employee earned this month) ───────────────────
+                $grossSalary = round($perDaySalary * $effectivePaidDays, 2);
+
+                // ── LOP DEDUCTION ─────────────────────────────────────────────
+                $lopDeduction = round($perDaySalary * $lopDays, 2);
+
+                // ── OVERTIME ──────────────────────────────────────────────────
+                $overtimeHours  = $attendances->sum('overtime_hours') ?? 0;
+                $overtimeAmount = round($overtimeRate * $overtimeHours, 2);
+
+                // ── STATUTORY DEDUCTIONS ──────────────────────────────────────
+                // PF: 12% of basic (only if applicable and basic >= 15000 threshold is optional)
+                // $pfAmount = $pfApplicable
+                //     ? round(($basicSalary / $totalWorkingDays * $effectivePaidDays) * 0.12, 2)
+                //     : 0;
+                $pfAmount = $pfApplicable
+                    ? round($basicSalary * 0.12, 2)
+                    : 0;
+
+                // ESIC: 0.75% of gross (applicable if gross <= 21000/month)
+                $esicAmount = ($esicApplicable && $grossSalary <= 21000)
+                    ? round($grossSalary * 0.0075, 2)
+                    : 0;
+
+                $totalDeductions =  $pfAmount + $esicAmount;
+                // $totalDeductions = $lopDeduction + $pfAmount + $esicAmount;
+
+                // ── NET SALARY ────────────────────────────────────────────────
+                $netSalary = round(($grossSalary + $overtimeAmount) - $totalDeductions, 2);
+
+                // ── SAVE ──────────────────────────────────────────────────────
+                return response()->json(
+                    [
+                        'employee_id' => $employee->id,
+                        'month'       => $month,
+                        'year'        => $year,
+
+                        'present_days'         => $presentDays,
+                        'paid_leaves'          => 0,
+                        'lop'                  => $lopDays,
+                        'half_days'            => $halfDays,
+                        'basic_amount'         => round($basicSalary, 2),
+                        'hra_allowance'        => round($hra, 2),
+                        'medical_allowance'    => round($medical, 2),
+                        'conveyance_allowance' => round($conveyanceAllowance, 2),
+                        'special_allowance'    => round($specialAllowance, 2),
+                        'overtime'             => $overtimeAmount,
+                        'gross_salary'         => $grossSalary,
+                        'pf_amount'            => $pfAmount,
+                        'esic_amount'          => $esicAmount,
+                        'deductions'           => $totalDeductions,
+                        'net_salary'           => $netSalary,
+                    ]
+                );
                 Payroll::updateOrCreate(
                     [
                         'employee_id' => $employee->id,
-                        'month' => $month,
-                        'year' => $year,
+                        'month'       => $month,
+                        'year'        => $year,
                     ],
                     [
-                        'total_days' => $daysInMonth,
-                        'present_days' => $presentDays,
-                        'paid_leaves' => 0,
-                        'lop' => 0,
-                        'half_days' => 0,
-                        'gross_salary' => $grossAmount,
-                        'deductions' => 0,
-                        'net_salary' => $netAmount,
+                        'present_days'         => $presentDays,
+                        'paid_leaves'          => 0,
+                        'lop'                  => $lopDays,
+                        'half_days'            => $halfDays,
+                        'basic_amount'         => round($basicSalary, 2),
+                        'hra_allowance'        => round($hra, 2),
+                        'medical_allowance'    => round($medical, 2),
+                        'conveyance_allowance' => round($conveyanceAllowance, 2),
+                        'special_allowance'    => round($specialAllowance, 2),
+                        'overtime'             => $overtimeAmount,
+                        'gross_salary'         => $grossSalary,
+                        'pf_amount'            => $pfAmount,
+                        'esic_amount'          => $esicAmount,
+                        'deductions'           => $totalDeductions,
+                        'net_salary'           => $netSalary,
                     ]
                 );
             }
 
-
             DB::commit();
 
-            return response()->json([
-                'message' => 'Payroll processed successfully'
-            ]);
+            return response()->json(['message' => 'Payroll processed successfully']);
         } catch (\Exception $e) {
-
             DB::rollBack();
 
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
     public function historyWithEmpId(Request $request)
     {
         DB::beginTransaction();

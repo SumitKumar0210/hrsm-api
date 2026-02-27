@@ -13,6 +13,16 @@ class Payroll extends Model
         'paid_leaves',
         'gross_salary',
         'deductions',
-        'net_salary'
+        'net_salary',
+        'overtime',
+        'basic_amount',
+        'hra_allowance',
+        'conveyance_allowance',
+        'medical_allowance',
+        'special_allowance',
+        'pf_amount',
+        'esic_amount',
+        'is_mail_sent',
+        'mail_sent_at',
     ];
 }
