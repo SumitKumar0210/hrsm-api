@@ -108,6 +108,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
 
     Route::prefix('mails')->group(function () {
         Route::post('/payroll-single-mail', [SendTemplateMailController::class, 'payrollSingleMail']);
+        Route::post('/payroll-bluk-mail', [SendTemplateMailController::class, 'bulkMailSendOfPayroll']);
     });
 
     Route::prefix('finalize-payroll')->group(function () {
@@ -149,6 +150,8 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::get('{id}', [MailTemplateController::class, 'show']);
         Route::post('{id}', [MailTemplateController::class, 'update']);
         Route::delete('{id}', [MailTemplateController::class, 'destroy']);
+        Route::post('/downloadPayslip/{id}', [PayrollController::class, 'downloadPayslip']);
+        Route::post('/viewPayslip/{id}', [PayrollController::class, 'viewPayslip']);
     });
 
     Route::prefix('setting')->group(function () {

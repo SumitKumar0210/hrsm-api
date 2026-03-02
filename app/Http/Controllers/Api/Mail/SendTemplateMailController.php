@@ -23,6 +23,7 @@ class SendTemplateMailController extends Controller
     */
     public function payrollSingleMail(Request $request)
     {
+
         $request->validate([
             'templateId' => 'required|exists:templates,id',
             'empId'      => 'required|exists:employees,id',
@@ -110,7 +111,7 @@ class SendTemplateMailController extends Controller
                 'payroll'  => $payroll,
                 'companyDetail'  => $companyDetail,
             ])->setPaper('a4', 'landscape');
-   
+
 
             Mail::to('sumitkrtechie@gmail.com')
                 // Mail::to($employee->email)

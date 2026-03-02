@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Api\Payroll;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Employee;
+use App\Models\FinalizedPayroll;
 use App\Models\Payroll;
+use App\Models\Setting;
+use App\Models\Template;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use NumberFormatter;
 
 class PayrollController extends Controller
 {
@@ -232,29 +238,29 @@ class PayrollController extends Controller
                 $netSalary = round(($grossSalary + $overtimeAmount) - $totalDeductions, 2);
 
                 // ── SAVE ──────────────────────────────────────────────────────
-                return response()->json(
-                    [
-                        'employee_id' => $employee->id,
-                        'month'       => $month,
-                        'year'        => $year,
+                // return response()->json(
+                //     [
+                //         'employee_id' => $employee->id,
+                //         'month'       => $month,
+                //         'year'        => $year,
 
-                        'present_days'         => $presentDays,
-                        'paid_leaves'          => 0,
-                        'lop'                  => $lopDays,
-                        'half_days'            => $halfDays,
-                        'basic_amount'         => round($basicSalary, 2),
-                        'hra_allowance'        => round($hra, 2),
-                        'medical_allowance'    => round($medical, 2),
-                        'conveyance_allowance' => round($conveyanceAllowance, 2),
-                        'special_allowance'    => round($specialAllowance, 2),
-                        'overtime'             => $overtimeAmount,
-                        'gross_salary'         => $grossSalary,
-                        'pf_amount'            => $pfAmount,
-                        'esic_amount'          => $esicAmount,
-                        'deductions'           => $totalDeductions,
-                        'net_salary'           => $netSalary,
-                    ]
-                );
+                //         'present_days'         => $presentDays,
+                //         'paid_leaves'          => 0,
+                //         'lop'                  => $lopDays,
+                //         'half_days'            => $halfDays,
+                //         'basic_amount'         => round($basicSalary, 2),
+                //         'hra_allowance'        => round($hra, 2),
+                //         'medical_allowance'    => round($medical, 2),
+                //         'conveyance_allowance' => round($conveyanceAllowance, 2),
+                //         'special_allowance'    => round($specialAllowance, 2),
+                //         'overtime'             => $overtimeAmount,
+                //         'gross_salary'         => $grossSalary,
+                //         'pf_amount'            => $pfAmount,
+                //         'esic_amount'          => $esicAmount,
+                //         'deductions'           => $totalDeductions,
+                //         'net_salary'           => $netSalary,
+                //     ]
+                // );
                 Payroll::updateOrCreate(
                     [
                         'employee_id' => $employee->id,
@@ -356,6 +362,9 @@ class PayrollController extends Controller
 
             $attendace = Attendance::whereMonth('date', $month)
                 ->whereYear('date', $year)->get();
+            $payrollStatus = FinalizedPayroll::where('month', $month)
+                ->where('year', $year)
+                ->exists();
             $employeeIds = (clone $attendace)->pluck('employee_id')->unique();
             $employees = Employee::whereIn('id', $employeeIds)
                 ->get(['id', 'first_name', 'last_name', 'employee_code']);
@@ -363,13 +372,134 @@ class PayrollController extends Controller
             return response()->json([
                 'success' => true,
                 'attendace' => $attendace,
-                'employees' => $employees
+                'employees' => $employees,
+                'payrollStatus' => $payrollStatus
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong.',
                 'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function downloadPayslip($id)
+    {
+        try {
+            $templateId = 2;
+            $payroll = Payroll::findOrFail($id);
+
+            // Fixed: Removed extra $ sign
+            $employee = Employee::with([
+                'department',
+                'shift',
+                'shift.employeeShift',
+                'designation',
+                'salaries'
+            ])->findOrFail($payroll->employee_id);
+
+            $template = Template::findOrFail($templateId);
+            $setting = Setting::latest()->first();
+
+            if (!$setting) {
+                throw new \Exception('Settings not found');
+            }
+
+            $netSalary = $payroll->net_salary ?? 0;
+
+            $formatter = new NumberFormatter('en_IN', NumberFormatter::SPELLOUT);
+            $amountInWords = ucfirst($formatter->format($netSalary)) . ' only';
+
+            $companyDetail = [
+                'logo' => $setting->logo,
+                'application_name' => $setting->application_name,
+                'address' => $setting->address . ' ' . $setting->city . ' ' . $setting->state . ' ' . $setting->zip . ' ' . $setting->country,
+                'contact' => $setting->contact,
+                'themeColor' => $setting->theme_color,
+                'total_amount_words' => $amountInWords
+            ];
+
+            // Generate PDF
+            $pdf = Pdf::loadView('pdf.salary_slip', [
+                'employee' => $employee,
+                'payroll'  => $payroll,
+                'companyDetail' => $companyDetail,
+            ])->setPaper('a4', 'landscape');
+
+            // Generate filename
+            $employeeCode = $employee->employee_code ?? $employee->id;
+            $payrollDate = date('Y-m', strtotime($payroll->payroll_date ?? now()));
+            $fileName = 'Payslip_' . $employeeCode . '_' . $payrollDate . '.pdf';
+
+            // Return PDF as download with proper headers
+            return response()->stream(
+                function () use ($pdf) {
+                    echo $pdf->output();
+                },
+                200,
+                [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error('Payslip download error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate payslip: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function viewPayslip($id)
+    {
+        try {
+            $templateId = 2;
+            $payroll = Payroll::findOrFail($id);
+
+            // Fixed: Removed extra $ sign
+            $employee = Employee::with([
+                'department',
+                'shift',
+                'shift.employeeShift',
+                'designation',
+                'salaries'
+            ])->findOrFail($payroll->employee_id);
+
+            $template = Template::findOrFail($templateId);
+            $setting = Setting::latest()->first();
+
+            if (!$setting) {
+                throw new \Exception('Settings not found');
+            }
+
+            $netSalary = $payroll->net_salary ?? 0;
+
+            $formatter = new NumberFormatter('en_IN', NumberFormatter::SPELLOUT);
+            $amountInWords = ucfirst($formatter->format($netSalary)) . ' only';
+
+            $companyDetail = [
+                'logo' => $setting->logo,
+                'application_name' => $setting->application_name,
+                'address' => $setting->address . ' ' . $setting->city . ' ' . $setting->state . ' ' . $setting->zip . ' ' . $setting->country,
+                'contact' => $setting->contact,
+                'themeColor' => $setting->theme_color,
+                'total_amount_words' => $amountInWords
+            ];
+
+            // Generate PDF
+            return response()->json([
+                'html' => view('pdf.salary_slip', compact('payroll', 'employee', 'companyDetail'))->render()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Payslip download error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate payslip: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -325,13 +325,24 @@
         <table class="header-table">
             <tr>
                 <td class="logo-cell">
-                    @php $logoPath = 'http://localhost:8000/storage/' . ($companyDetail['logo'] ?? ''); @endphp
-                    @if (!empty($companyDetail['logo']))
-                        <img src="{{ $logoPath }}" alt="{{ $companyDetail['application_name'] ?? 'Logo' }}">
+                    @php
+                        $logoBase64 = '';
+
+                        if (!empty($companyDetail['logo'])) {
+                            $logoPath = public_path('storage/' . $companyDetail['logo']);
+
+                            if (file_exists($logoPath)) {
+                                $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+                                $data = file_get_contents($logoPath);
+                                $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                            }
+                        }
+                    @endphp
+
+                    @if ($logoBase64)
+                        <img src="{{ $logoBase64 }}" width="80">
                     @else
-                        <span style="font-weight:bold; font-size:15px; color:#555;">
-                            {{ $companyDetail['application_name'] ?? 'YOUR LOGO' }}
-                        </span>
+                        <span style="font-weight:bold;">{{ $companyDetail['application_name'] ?? 'YOUR LOGO' }}</span>
                     @endif
                 </td>
                 <td class="company-cell">
@@ -346,20 +357,21 @@
         <table class="employee-table" style="margin-top:16px;">
             <tr>
                 <td class="info-label">Name:</td>
-                <td class="info-value"> {{ $employee->first_name }}  {{ $employee->last_name }} </td>
+                <td class="info-value"> {{ $employee->first_name }} {{ $employee->last_name }} </td>
                 <td class="info-spacer"></td>
                 <td class="info-label">Joining Date</td>
-                <td class="info-value"> {{$employee->date_of_joining ? date('d-m-Y',strtotime($employee->date_of_joining)) : '' }} </td>
+                <td class="info-value">
+                    {{ $employee->date_of_joining ? date('d-m-Y', strtotime($employee->date_of_joining)) : '' }} </td>
             </tr>
             <tr>
                 <td colspan="5" style="height:8px;"></td>
             </tr>
             <tr>
                 <td class="info-label">Designation:</td>
-                <td class="info-value"> {{ $employee->designation?->name?? '' }} </td>
+                <td class="info-value"> {{ $employee->designation?->name ?? '' }} </td>
                 <td class="info-spacer"></td>
                 <td class="info-label">Department:</td>
-                <td class="info-value"> {{ $employee->department?->name?? '' }} </td>
+                <td class="info-value"> {{ $employee->department?->name ?? '' }} </td>
             </tr>
         </table>
 
@@ -384,7 +396,7 @@
                 <!-- Row 2 -->
                 <tr>
                     <td class="data-label">HRA</td>
-                    <td class="data-amount"> {{$payroll?->hra_allowance ?? 0}} </td>
+                    <td class="data-amount"> {{ $payroll?->hra_allowance ?? 0 }} </td>
                     <td class="data-label-r">Phone Charges</td>
                     <td class="data-amount-r"> 0 </td>
                 </tr>
@@ -392,21 +404,21 @@
                 <!-- Row 3 -->
                 <tr>
                     <td class="data-label">Conveyance</td>
-                    <td class="data-amount"> {{$payroll?->conveyance_allowance ?? 0}} </td>
+                    <td class="data-amount"> {{ $payroll?->conveyance_allowance ?? 0 }} </td>
                     <td class="data-label-r">Misc. Value</td>
                     <td class="data-amount-r"> 0 </td>
                 </tr>
 
                 <tr>
                     <td class="data-label">MEDICAL ALLOWANCE</td>
-                    <td class="data-amount"> {{$payroll?->medical_allowance ?? 0}} </td>
+                    <td class="data-amount"> {{ $payroll?->medical_allowance ?? 0 }} </td>
                     <td class="data-label-r">PF </td>
                     <td class="data-amount-r"> {{ $payroll?->pf_amount ?? 0 }} </td>
                 </tr>
 
                 <tr>
                     <td class="data-label">SPECIAL ALLOWANCE</td>
-                    <td class="data-amount"> {{$payroll?->special_allowance ?? 0}} </td>
+                    <td class="data-amount"> {{ $payroll?->special_allowance ?? 0 }} </td>
                     <td class="data-label-r">ESIC</td>
                     <td class="data-amount-r"> {{ $payroll?->esic_amount ?? 0 }} </td>
                 </tr>
@@ -485,11 +497,19 @@
                 <td class="info-spacer"></td>
                 <td class="bank-label">Signatures:</td>
                 <td class="bank-value">
-                    @if (file_exists(public_path('storage/signature/signature.png')))
-                        <img src="{{ asset('/storage/signature/signature.png') }}" class="signature-img"
-                            alt="Signature">
-                    @else
-                        &nbsp;
+                    @php
+                        $signatureBase64 = '';
+                        $signaturePath = public_path('storage/signature/signature.png');
+
+                        if (file_exists($signaturePath)) {
+                            $type = pathinfo($signaturePath, PATHINFO_EXTENSION);
+                            $data = file_get_contents($signaturePath);
+                            $signatureBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                        }
+                    @endphp
+
+                    @if ($signatureBase64)
+                        <img src="{{ $signatureBase64 }}" class="signature-img">
                     @endif
                 </td>
             </tr>
@@ -500,7 +520,7 @@
 
         <!-- FOOTER -->
         <div class="footer">
-            <p>{{ $companyDetail['application_name']?? '' }}</p>
+            <p>{{ $companyDetail['application_name'] ?? '' }}</p>
         </div>
         <div class="disclaimer">
             This is a system-generated salary slip and does not require a signature.
