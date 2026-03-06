@@ -38,6 +38,7 @@ class OnboardingController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        
         // Validate request
         $validator = Validator::make($request->all(), [
             // Basic Info
@@ -342,7 +343,7 @@ class OnboardingController extends Controller
     /**
      * Update employee
      */
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, $id): JsonResponse
     {
         try {
             $employee = Employee::with('user')->findOrFail($id);

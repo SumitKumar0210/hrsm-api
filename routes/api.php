@@ -57,7 +57,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
     Route::prefix('employees')->group(function () {
         Route::get('/', [OnboardingController::class, 'index']);
         Route::get('/{id}', [OnboardingController::class, 'show']);
-        Route::post('/{id}', [OnboardingController::class, 'update']);
+        Route::patch('/{id}', [OnboardingController::class, 'update']);
         Route::delete('{id}', [OnboardingController::class, 'destroy']);
         // Route::post('/{id}', function (){return response()->json(['success'=>true,'message'=> 'pass']);});
         Route::patch('/{id}/status', [OnboardingController::class, 'toggleStatus']);
@@ -143,6 +143,7 @@ Route::middleware('auth:api', 'single.device')->group(function () {
     Route::prefix('payroll')->group(function () {
         Route::get('/', [PayrollController::class, 'index']);
         Route::post('/process', [PayrollController::class, 'processPayroll']);
+        Route::post('/payment', [PayrollController::class, 'storePayment']);
         // Route::post('/process/attendance', function(){return response()->json(['success'=>true,'message'=>'test']);});
         Route::post('/process/attendance', [PayrollController::class, 'processAttendance']);
         Route::post('/history', [PayrollController::class, 'historyWithEmpId']);

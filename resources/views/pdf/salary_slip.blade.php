@@ -325,10 +325,11 @@
         <table class="header-table">
             <tr>
                 <td class="logo-cell">
-                    @php
+                    {{-- @php
                         $logoBase64 = '';
 
                         if (!empty($companyDetail['logo'])) {
+                            // $logoPath = 'https://caresoft.margdarshanhospital.com/backend/assets/images/favicon.png';
                             $logoPath = public_path('storage/' . $companyDetail['logo']);
 
                             if (file_exists($logoPath)) {
@@ -336,6 +337,18 @@
                                 $data = file_get_contents($logoPath);
                                 $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                             }
+                        }
+                    @endphp --}}
+                    @php
+                        $logoBase64 = '';
+
+                        $logoPath = 'https://caresoft.margdarshanhospital.com/backend/assets/images/favicon.png';
+
+                        $data = @file_get_contents($logoPath);
+
+                        if ($data !== false) {
+                            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+                            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                         }
                     @endphp
 
@@ -362,6 +375,18 @@
                 <td class="info-label">Joining Date</td>
                 <td class="info-value">
                     {{ $employee->date_of_joining ? date('d-m-Y', strtotime($employee->date_of_joining)) : '' }} </td>
+            </tr>
+            <tr>
+                <td colspan="5" style="height:8px;"></td>
+            </tr>
+
+            <tr>
+                <td class="info-label">Month:</td>
+                <td class="info-value"> {{ $payroll?->month ? date('M', strtotime('$payroll?->month')) : 'N/A' }} </td>
+                <td class="info-spacer"></td>
+                <td class="info-label">Year</td>
+                <td class="info-value">
+                    {{ $payroll?->year ?? 'N/A' }} </td>
             </tr>
             <tr>
                 <td colspan="5" style="height:8px;"></td>

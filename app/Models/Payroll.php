@@ -24,5 +24,6 @@ class Payroll extends Model
         'esic_amount',
         'is_mail_sent',
         'mail_sent_at',
+        'is_paid',
     ];
 }

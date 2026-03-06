@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\FinalizedPayroll;
+use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Setting;
 use App\Models\Template;
@@ -500,6 +501,62 @@ class PayrollController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate payslip: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function storePayment(Request $request)
+    {
+        try {
+
+            $validated = $request->validate([
+                'payroll_id' => 'required|exists:payrolls,id',
+                'amount' => 'required|numeric|min:1',
+                'payment_method' => 'required|string',
+                'payment_date' => 'required|date',
+                'transaction_id' => 'nullable|string',
+                'remarks' => 'nullable|string',
+            ]);
+
+            $payroll = Payroll::find($request->payroll_id);
+            if (!$payroll) {
+                return response()->json(['success' => false, 'message' => 'Payroll not found'], 404);
+            }
+
+            $netAmount = $payroll->net_salary;
+            $paidAmount = $validated['amount'];
+
+            if ($paidAmount > $netAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Paid amount cannot be greater than net amount'
+                ], 422);
+            }
+
+            $due = $netAmount - $paidAmount;
+
+            $payment = Payment::create([
+                'payroll_id'     => $validated['payroll_id'],
+                'amount'         => $paidAmount,
+                'mode'           => $validated['payment_method'],
+                'date'           => $validated['payment_date'],
+                'due'            => $due,
+                'transaction_id' => $validated['transaction_id'] ?? null,
+                'remarks'        => $validated['remarks'] ?? null,
+                'action_by'      => auth()->id(),
+            ]);
+            $payroll->update(['is_paid'=> '1']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment stored successfully',
+                'data' => $payment
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to store payment: ' . $e->getMessage()
             ], 500);
         }
     }
