@@ -12,11 +12,17 @@ use Illuminate\Validation\Rule;
 class RoleController extends Controller
 {
     // List roles
-    public function index()
+    public function index(Request $request)
     {
+        $query = Role::query();
+        if ($request->has('status')) {
+            $status = $request->input('status');
+            $query->where('status', $status);
+        }
+        $data = $query->orderBy('name', 'asc')->get();
         return response()->json([
             'success' => true,
-            'data' => Role::latest()->get(),
+            'data' => $data,
         ], 200);
     }
 

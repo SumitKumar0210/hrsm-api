@@ -4,11 +4,13 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
@@ -17,6 +19,8 @@ class User extends Authenticatable implements JWTSubject
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
+    use HasRoles;
+    use SoftDeletes;
     use HasProfilePhoto;
     use Notifiable;
     use TwoFactorAuthenticatable;
@@ -29,6 +33,7 @@ class User extends Authenticatable implements JWTSubject
     protected $fillable = [
         'name',
         'email',
+        'status',
         'password',
         'token',
     ];

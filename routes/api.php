@@ -10,12 +10,14 @@ use App\Http\Controllers\Api\Leave\LeaveController;
 use App\Http\Controllers\Api\Mail\SendTemplateMailController;
 use App\Http\Controllers\Api\Payroll\FinalizePayrollController;
 use App\Http\Controllers\Api\Payroll\PayrollController;
+use App\Http\Controllers\Api\RolePermission\PermissionController;
 use App\Http\Controllers\Api\RolePermission\RoleController;
 use App\Http\Controllers\Api\Salary\SalaryManagementController;
 use App\Http\Controllers\Api\Setting\SettingController;
 use App\Http\Controllers\Api\Shift\ShiftController;
 use App\Http\Controllers\Api\Template\MailTemplateController;
 use App\Http\Controllers\Api\Template\TemplateVariableController;
+use App\Http\Controllers\Api\User\UserController;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +54,24 @@ Route::middleware('auth:api', 'single.device')->group(function () {
         Route::get('{id}', [DesignationController::class, 'show']);
         Route::post('{id}', [DesignationController::class, 'update']);
         Route::delete('{id}', [DesignationController::class, 'destroy']);
+    });
+
+    Route::prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index']);
+        Route::post('/{id}/status', [UserController::class, 'updateStatus']);
+        Route::post('/', [UserController::class, 'store']);
+        Route::get('/{id}', [UserController::class, 'show']);
+        Route::post('/{id}', [UserController::class, 'update']);
+        Route::delete('/{id}', [UserController::class, 'destroy']);
+    });
+
+    Route::group(['prefix' => 'user-permissions'], function ($router) {
+        Route::get('get-data', [PermissionController::class, 'getData']);
+        Route::post('store', [PermissionController::class, 'store']);
+        Route::post('update/{id}', [PermissionController::class, 'update']);
+        Route::post('delete/{id}', [PermissionController::class, 'destroy']);
+        Route::post('get-data-by-module', [PermissionController::class, 'getDataByModule']);
+        Route::post('get-module-permission', [PermissionController::class, 'getModulePermission']);
     });
 
     Route::prefix('employees')->group(function () {

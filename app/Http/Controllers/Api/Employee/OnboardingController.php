@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class OnboardingController extends Controller
 {
@@ -103,9 +104,10 @@ class OnboardingController extends Controller
                     'password' => Hash::make($temporaryPassword),
                 ]);
 
-                // TODO: Send password to user via email or SMS
-            }
+                $user->syncRoles($request->job_role);
 
+            }
+            
             // Create Employee
             $employee = Employee::create([
                 'user_id'         => $user?->id,
@@ -122,46 +124,50 @@ class OnboardingController extends Controller
                 'city'            => $validated['city'],
                 'state'           => $validated['state'],
                 'zip_code'        => $validated['pin_code'],
-
+                
                 // Work Details
                 'source'          => $validated['source'],
                 'designation_id'  => $validated['job_role'],
                 'department_id'   => $validated['department'],
                 'shift_id'        => $validated['shift_id'],
-
+                
                 // Personal Details
                 'blood_group'     => $validated['blood_group'] ?? null,
                 'aadhar_number'   => $validated['aadhar_no'] ?? null,
-
-            ]);
-
-            // Handle document uploads AFTER employee is created
-            $uploads = $this->handleUploads($request, $employee->id);
-
-            // Update employee with document paths
-            $employee->update([
-                'id_proof'        => $uploads['idProof'] ?? null,
-                'address_proof'   => $uploads['addressProof'] ?? null,
-                'bank_details'    => $uploads['bankDetails'] ?? null,
-                'contract_letter' => $uploads['contractLetter'] ?? null,
-                'profile_image'   => $uploads['profileImage'] ?? null,
-            ]);
-
-            // Create document records in documents table
-            $this->createDocumentRecords($employee->id, $uploads);
-
-            // Create Shift Log
-            EmployeeShiftLog::create([
-                'employee_id' => $employee->id,
-                'shift_id'    => $employee->shift_id,
-                'sign_in'     => $validated['shift_check_in_timing'] ?? null,
-                'sign_out'    => $validated['shift_check_out_timing'] ?? null,
-                'action_by'   => auth()->id() ?? null,
-            ]);
-
-            DB::commit();
-
-            // Send Email (after transaction success) - Run in background
+                
+                ]);
+                
+                // Handle document uploads AFTER employee is created
+                $uploads = $this->handleUploads($request, $employee->id);
+                
+                // Update employee with document paths
+                $employee->update([
+                    'id_proof'        => $uploads['idProof'] ?? null,
+                    'address_proof'   => $uploads['addressProof'] ?? null,
+                    'bank_details'    => $uploads['bankDetails'] ?? null,
+                    'contract_letter' => $uploads['contractLetter'] ?? null,
+                    'profile_image'   => $uploads['profileImage'] ?? null,
+                    ]);
+                    
+                    // Create document records in documents table
+                    $this->createDocumentRecords($employee->id, $uploads);
+                    
+                    // Create Shift Log
+                    EmployeeShiftLog::create([
+                        'employee_id' => $employee->id,
+                        'shift_id'    => $employee->shift_id,
+                        'sign_in'     => $validated['shift_check_in_timing'] ?? null,
+                        'sign_out'    => $validated['shift_check_out_timing'] ?? null,
+                        'action_by'   => auth()->id() ?? null,
+                        ]);
+                        
+                        if ($request->boolean('is_application_user')) {
+                            $employee->user_id = $user->id;
+                            $employee->save();
+                        }
+                        DB::commit();
+                        
+                        // Send Email (after transaction success) - Run in background
             try {
                 Mail::to($employee->email)->queue(new OnboardingMail($employee));
             } catch (\Exception $e) {
@@ -565,7 +571,7 @@ class OnboardingController extends Controller
     public function toggleStatus(Request $request, int $id): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|string|in:On Duty,Leave,Inactive'
+            'status' => 'required|string|in:active,terminated,inactive'
         ]);
 
         if ($validator->fails()) {
