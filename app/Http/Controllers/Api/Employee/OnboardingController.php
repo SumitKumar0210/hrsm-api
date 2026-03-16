@@ -26,6 +26,8 @@ class OnboardingController extends Controller
     /**
      * Document types mapping
      */
+
+    
     private const DOCUMENT_TYPES = [
         'idProof' => 'id_proof',
         'addressProof' => 'address_proof',
@@ -39,6 +41,12 @@ class OnboardingController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+
+        // return response()->json([
+        //     'success' => true,
+        //     'message' => 'Employee onboarded successfully',
+        //     'data'    => $request->all()
+        // ], );
         
         // Validate request
         $validator = Validator::make($request->all(), [
@@ -104,7 +112,7 @@ class OnboardingController extends Controller
                     'password' => Hash::make($temporaryPassword),
                 ]);
 
-                $user->syncRoles($request->job_role);
+                $user->syncRoles($request->role);
 
             }
             

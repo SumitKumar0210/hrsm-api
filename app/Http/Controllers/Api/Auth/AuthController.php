@@ -5,6 +5,12 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Models\User;
+use App\Models\UserType;
+use Mail;
 
 class AuthController extends Controller
 {
@@ -32,9 +38,16 @@ class AuthController extends Controller
         ]);
     }
 
-    public function me()
+     public function me(Request $request)
     {
-        return response()->json(auth('api')->user());
+        $user = $request->user();
+        $user->load('roles', 'permissions');
+    
+        return response()->json([
+            'user' => $user->only(['id', 'name', 'email', 'access_token', 'image']),
+            'roles' => $user->getRoleNames(),
+            'permissions' => $user->getAllPermissions()->pluck('name')  // 
+        ]);
     }
 
     public function logout()

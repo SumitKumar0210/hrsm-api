@@ -106,9 +106,10 @@ Route::middleware('auth:api', 'single.device')->group(function () {
     Route::prefix('roles')->group(function () {
         Route::get('/', [RoleController::class, 'index']);
         Route::post('/', [RoleController::class, 'store']);
-        Route::get('{id}', [RoleController::class, 'show']);
-        Route::post('{id}', [RoleController::class, 'update']);
-        Route::delete('{id}', [RoleController::class, 'destroy']);
+        Route::get('/{id}', [RoleController::class, 'show']);
+        Route::put('/{id}', [RoleController::class, 'update']);
+        Route::delete('/{id}', [RoleController::class, 'destroy']);
+        Route::post('/assign-permissions', [RoleController::class, 'assignPermission']);
     });
 
     Route::prefix('salary')->group(function () {

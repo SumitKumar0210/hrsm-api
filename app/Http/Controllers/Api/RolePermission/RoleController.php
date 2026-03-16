@@ -4,154 +4,197 @@ namespace App\Http\Controllers\Api\RolePermission;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\PermissionRegistrar;
 
 class RoleController extends Controller
 {
+
     // List roles
     public function index(Request $request)
     {
         $query = Role::query();
+
         if ($request->has('status')) {
-            $status = $request->input('status');
-            $query->where('status', $status);
+            $query->where('status', $request->status);
         }
-        $data = $query->orderBy('name', 'asc')->get();
+
+        $roles = $query->orderBy('name')->get();
+
         return response()->json([
-            'success' => true,
-            'data' => $data,
-        ], 200);
+            'status' => true,
+            'data' => $roles
+        ]);
     }
+
 
     // Store role
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('roles', 'name')->whereNull('deleted_at'),
+                Rule::unique('roles', 'name')->whereNull('deleted_at')
             ],
             'guard_name' => 'required|string|max:255',
-            'status' => 'nullable|in:0,1',
+            'status' => 'nullable|in:0,1'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()->all(),
-            ], 422);
-        }
-
         try {
+
             $role = Role::create([
                 'name' => $request->name,
                 'guard_name' => $request->guard_name,
-                'status' => $request->status ?? 1,
+                'status' => $request->status ?? 1
             ]);
 
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
             return response()->json([
-                'success' => true,
+                'status' => true,
                 'message' => 'Role created successfully',
-                'data' => $role,
+                'data' => $role
             ], 201);
 
-        } catch (\Throwable $e) {
-            Log::error('Role store error', [
-                'message' => $e->getMessage(),
-            ]);
+        } catch (Exception $e) {
+
+            Log::error('Role create failed: '.$e->getMessage());
 
             return response()->json([
-                'success' => false,
-                'message' => 'Role creation failed',
+                'status' => false,
+                'message' => 'Role creation failed'
             ], 500);
         }
     }
 
+
     // Show role
     public function show($id)
     {
-        $role = Role::find($id);
+        try {
 
-        if (!$role) {
+            $role = Role::with('permissions')->findOrFail($id);
+
             return response()->json([
-                'success' => false,
-                'message' => 'Role not found',
+                'status' => true,
+                'data' => $role
+            ]);
+
+        } catch (Exception $e) {
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Role not found'
             ], 404);
         }
-
-        return response()->json([
-            'success' => true,
-            'data' => $role,
-        ], 200);
     }
+
 
     // Update role
     public function update(Request $request, $id)
     {
-        $role = Role::find($id);
 
-        if (!$role) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Role not found',
-            ], 404);
-        }
+        $role = Role::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'name' => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('roles', 'name')
                     ->ignore($id)
-                    ->whereNull('deleted_at'),
+                    ->whereNull('deleted_at')
             ],
             'guard_name' => 'required|string|max:255',
-            'status' => 'nullable|in:0,1',
+            'status' => 'nullable|in:0,1'
         ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()->all(),
-            ], 422);
-        }
 
         $role->update([
             'name' => $request->name,
             'guard_name' => $request->guard_name,
-            'status' => $request->status ?? $role->status,
+            'status' => $request->status ?? $role->status
         ]);
 
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         return response()->json([
-            'success' => true,
+            'status' => true,
             'message' => 'Role updated successfully',
-            'data' => $role,
-        ], 200);
+            'data' => $role
+        ]);
     }
 
-    // Delete role (soft delete)
+
+    // Delete role
     public function destroy($id)
     {
-        $role = Role::find($id);
+        try {
 
-        if (!$role) {
+            $role = Role::findOrFail($id);
+
+            $role->delete();
+
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
             return response()->json([
-                'success' => false,
-                'message' => 'Role not found',
+                'status' => true,
+                'message' => 'Role deleted successfully'
+            ]);
+
+        } catch (Exception $e) {
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Role not found'
             ], 404);
         }
+    }
 
-        $role->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Role deleted successfully',
-        ], 200);
+    // Assign permissions
+    public function assignPermission(Request $request)
+    {
+
+        $request->validate([
+            'id' => 'required|exists:roles,id',
+            'permissionNames' => 'required|array',
+            'permissionNames.*' => 'exists:permissions,name'
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $role = Role::findOrFail($request->id);
+
+            $role->syncPermissions($request->permissionNames);
+
+            DB::commit();
+
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Permissions assigned successfully',
+                'data' => $role->load('permissions')
+            ]);
+
+        } catch (Exception $e) {
+
+            DB::rollBack();
+
+            Log::error('Permission assign error: '.$e->getMessage());
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to assign permissions'
+            ], 500);
+        }
     }
 }
