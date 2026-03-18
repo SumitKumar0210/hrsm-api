@@ -18,6 +18,8 @@ class EmployeeSalary extends Model
         'overtime_rate',
         'pf_applicable',
         'esic_applicable',
+        'pf_amount',
+        'esic_amount',
         'status',
         'uan_number',
         'esic_number',

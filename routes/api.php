@@ -27,6 +27,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('app-details', [SettingController::class, 'getData']);
 
 Route::middleware('auth:api')->group(function () {
     Route::post('/me', [AuthController::class, 'me']);

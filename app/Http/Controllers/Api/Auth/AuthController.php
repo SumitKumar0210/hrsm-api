@@ -34,19 +34,29 @@ class AuthController extends Controller
             'status' => true,
             'token' => $token,
             'type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * (60*24*365)
+            'expires_in' => auth('api')->factory()->getTTL() * (60 * 24 * 365)
         ]);
     }
 
-     public function me(Request $request)
+    public function me(Request $request)
     {
         $user = $request->user();
-        $user->load('roles', 'permissions');
-    
+        $user->load('roles', 'permissions', 'employee.documents');
+
+        $profileImage = $user->employee?->documents
+            ?->where('document_type', 'profile_image')
+            ->first();
+
         return response()->json([
-            'user' => $user->only(['id', 'name', 'email', 'access_token', 'image']),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'access_token' => $user->access_token,
+                'image' => $profileImage?->file_path ?? null, // ✅ only path
+            ],
             'roles' => $user->getRoleNames(),
-            'permissions' => $user->getAllPermissions()->pluck('name')  // 
+            'permissions' => $user->getAllPermissions()->pluck('name')
         ]);
     }
 

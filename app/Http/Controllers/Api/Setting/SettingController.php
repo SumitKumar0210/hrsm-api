@@ -111,4 +111,16 @@ class SettingController extends Controller
         return $request->file($field)
             ->store('settings', 'public');
     }
+
+    public function getData(Request $request)
+    {
+        try{
+            $setting = Setting::orderBy('id','desc')->get();
+            $arr = [ 'data' => $setting];
+            return response()->json($arr);
+        }catch(\Exception $e){
+            return response()->json(['error' => 'Failed to fetch general setting' . $e->getMessage()], 500);
+        }
+        
+    }
 }

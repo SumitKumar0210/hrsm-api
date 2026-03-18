@@ -32,6 +32,7 @@ class SalaryManagementController extends Controller
      */
     public function store(Request $request)
     {
+       
         $validator = Validator::make($request->all(), [
             'employee_id' => 'required|exists:employees,id',
 
