@@ -195,8 +195,10 @@ class PayrollController extends Controller
                 $conveyanceAllowance = (float) ($salary->conveyance_allowance   ?? 0);
                 $specialAllowance    = (float) ($salary->special_allowance      ?? 0);
                 $overtimeRate        = (float) ($salary->overtime_rate          ?? 0); // hourly
-                $pfApplicable        = (bool)  ($salary->pf_applicable          ?? false);
-                $esicApplicable      = (bool)  ($salary->esic_applicable        ?? false);
+                // $pfApplicable        = (bool)  ($salary->pf_applicable          ?? false);
+                // $esicApplicable      = (bool)  ($salary->esic_applicable        ?? false);
+                $pfAmount          = (float) ($salary->pf_amount              ?? 0);
+                $esicAmount        = (float) ($salary->esic_amount            ?? 0);
 
                 $totalAllowances = $hra + $medical + $conveyanceAllowance + $specialAllowance;
                 $monthlyGross    = $basicSalary + $totalAllowances;
@@ -223,14 +225,14 @@ class PayrollController extends Controller
                 // $pfAmount = $pfApplicable
                 //     ? round(($basicSalary / $totalWorkingDays * $effectivePaidDays) * 0.12, 2)
                 //     : 0;
-                $pfAmount = $pfApplicable
-                    ? round($basicSalary * 0.12, 2)
-                    : 0;
+                // $pfAmount = $pfApplicable
+                //     ? round($basicSalary * 0.12, 2)
+                //     : 0;
 
                 // ESIC: 0.75% of gross (applicable if gross <= 21000/month)
-                $esicAmount = ($esicApplicable && $grossSalary <= 21000)
-                    ? round($grossSalary * 0.0075, 2)
-                    : 0;
+                // $esicAmount = ($esicApplicable && $grossSalary <= 21000)
+                //     ? round($grossSalary * 0.0075, 2)
+                //     : 0;
 
                 $totalDeductions =  $pfAmount + $esicAmount;
                 // $totalDeductions = $lopDeduction + $pfAmount + $esicAmount;
@@ -238,30 +240,7 @@ class PayrollController extends Controller
                 // ── NET SALARY ────────────────────────────────────────────────
                 $netSalary = round(($grossSalary + $overtimeAmount) - $totalDeductions, 2);
 
-                // ── SAVE ──────────────────────────────────────────────────────
-                // return response()->json(
-                //     [
-                //         'employee_id' => $employee->id,
-                //         'month'       => $month,
-                //         'year'        => $year,
-
-                //         'present_days'         => $presentDays,
-                //         'paid_leaves'          => 0,
-                //         'lop'                  => $lopDays,
-                //         'half_days'            => $halfDays,
-                //         'basic_amount'         => round($basicSalary, 2),
-                //         'hra_allowance'        => round($hra, 2),
-                //         'medical_allowance'    => round($medical, 2),
-                //         'conveyance_allowance' => round($conveyanceAllowance, 2),
-                //         'special_allowance'    => round($specialAllowance, 2),
-                //         'overtime'             => $overtimeAmount,
-                //         'gross_salary'         => $grossSalary,
-                //         'pf_amount'            => $pfAmount,
-                //         'esic_amount'          => $esicAmount,
-                //         'deductions'           => $totalDeductions,
-                //         'net_salary'           => $netSalary,
-                //     ]
-                // );
+               
                 Payroll::updateOrCreate(
                     [
                         'employee_id' => $employee->id,

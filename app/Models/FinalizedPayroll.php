@@ -13,14 +13,16 @@ class FinalizedPayroll extends Model
        'gross_amount',
        'pf_amount',
        'esic_amount',
+       'net_amount',
        'action_by',
-       'date_time',
        'attendance_approval_status',
        'pf_calculation_status',
        'esic_calculation_status',
        'payslip_generation_status',
        'compliance_status',
        'management_approval_status',
-       'net_amount',
+       'finalized_status',
+       'correction_status',
+       'date_time',
     ];
 }

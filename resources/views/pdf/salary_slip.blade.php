@@ -325,7 +325,7 @@
         <table class="header-table">
             <tr>
                 <td class="logo-cell">
-                    {{-- @php
+                    @php
                         $logoBase64 = '';
 
                         if (!empty($companyDetail['logo'])) {
@@ -338,8 +338,8 @@
                                 $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                             }
                         }
-                    @endphp --}}
-                    @php
+                    @endphp
+                    {{-- @php
                         $logoBase64 = '';
 
                         $logoPath = 'https://caresoft.margdarshanhospital.com/backend/assets/images/favicon.png';
@@ -350,7 +350,7 @@
                             $type = pathinfo($logoPath, PATHINFO_EXTENSION);
                             $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                         }
-                    @endphp
+                    @endphp --}}
 
                     @if ($logoBase64)
                         <img src="{{ $logoBase64 }}" width="80">

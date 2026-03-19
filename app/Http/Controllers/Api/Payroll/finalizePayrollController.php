@@ -75,16 +75,17 @@ class FinalizePayrollController extends Controller
      */
     public function store(Request $request)
     {
+        // return response()->json(['success' => true, 'data' => $request->all()]);
         DB::beginTransaction();
 
         try {
             $request->validate([
                 'month'                      => 'required|date',
                 'attendance_approval_status' => 'nullable|boolean',
-                'pf_calculation_status'      => 'nullable|boolean',
-                'esic_calculation_status'    => 'nullable|boolean',
+                'compliance_status'      => 'nullable|boolean',
+                'correction_status'    => 'nullable|boolean',
                 'payslip_generation_status'  => 'nullable|boolean',
-                'compliance_status'          => 'nullable|boolean',
+                'pf_calculation_status'          => 'nullable|boolean',
                 'management_approval_status' => 'nullable|boolean',
             ]);
 
@@ -137,11 +138,13 @@ class FinalizePayrollController extends Controller
                 'esic_amount'                => $payrollSummary->esic_amount,
                 'net_amount'                 => $payrollSummary->net_amount,
                 'action_by'                  => auth()->id(),
-                'attendance_approval_status' => $request->attendance_approval_status ? 1 : 0,
-                'pf_calculation_status'      => $request->pf_calculation_status ? 1 : 0,
+                'attendance_approval_status' => $request->attendance_approval_status ? '1' : '0',
+                'pf_calculation_status'      => $request->pf_calculation_status ? '1' : '0',
                 'esic_calculation_status'    => $request->esic_calculation_status??$request->pf_calculation_status,
-                'payslip_generation_status'  => $request->payslip_generation_status ? 1 : 0,
-                'compliance_status'          => $request->compliance_status ? 1 : 0,
+                'payslip_generation_status'  => $request->payslip_generation_status ? '1' : '0',
+                'compliance_status'          => $request->compliance_status ? '1' : '0',
+                'finalized_status'        => $request->confirmation_status ? '1' : '0',
+                'correction_status'        => $request->correction_status ? '1' : '0',
                 // 'management_approval_status' => $request->management_approval_status?? 0,
                 'date_time'                  => now(),
             ]);
